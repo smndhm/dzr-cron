@@ -1,7 +1,7 @@
 // .ENV
 require("dotenv").config();
 
-if (!process.env.DZR_ACCESS_TOKEN || !process.env.DZR_PLAYLIST_ID) {
+if (!process.env.DZR_ACCESS_TOKEN || !process.env.LAST_FAV_PLAYLIST_ID) {
   console.error(".env not configured");
   return;
 }
@@ -17,12 +17,14 @@ const params = {
 
 // SET QUERY SETTINGS
 const dzrQuerySettings = {
-  nbTracks: process.env.PLAYLIST_NB_TRACKS || 50,
-  noExplicitLyrics: process.env.PLAYLIST_NO_EXPLICIT === "true",
+  nbTracks: process.env.LAST_FAV_PLAYLIST_NB_TRACKS || 50,
+  noExplicitLyrics: process.env.LAST_FAV_PLAYLIST_NO_EXPLICIT === "true",
 };
 
 (async () => {
   try {
+    console.log("Script started...");
+
     // GET USER PERMISSIONS
     const {
       data: { permissions: dzrPermissions },
@@ -71,7 +73,7 @@ const dzrQuerySettings = {
       },
     } = await axios({
       method: "get",
-      url: `/playlist/${process.env.DZR_PLAYLIST_ID}`,
+      url: `/playlist/${process.env.LAST_FAV_PLAYLIST_ID}`,
       params,
     });
     const dzrOfflinePlaylistTracksId = dzrOfflinePlaylistTracks.map(
@@ -85,12 +87,13 @@ const dzrQuerySettings = {
     if (tracksToRemove.length) {
       await axios({
         method: "delete",
-        url: `/playlist/${process.env.DZR_PLAYLIST_ID}/tracks`,
+        url: `/playlist/${process.env.LAST_FAV_PLAYLIST_ID}/tracks`,
         params: {
           access_token,
           songs: tracksToRemove.join(","),
         },
       });
+      console.log(`${tracksToRemove.length} track(s) removed.`);
     }
 
     // GET TRACKS TO ADD
@@ -98,15 +101,18 @@ const dzrQuerySettings = {
       (track) => !dzrOfflinePlaylistTracksId.includes(track)
     );
     if (tracksToAdd.length) {
-      const response = await axios({
+      await axios({
         method: "post",
-        url: `/playlist/${process.env.DZR_PLAYLIST_ID}/tracks`,
+        url: `/playlist/${process.env.LAST_FAV_PLAYLIST_ID}/tracks`,
         params: {
           access_token,
           songs: tracksToAdd.join(","),
         },
       });
+      console.log(`${tracksToAdd.length} track(s) added.`);
     }
+
+    console.log("Script ended!");
   } catch (e) {
     console.error(e);
   }
