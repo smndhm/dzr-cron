@@ -31,5 +31,6 @@ I have been using [PM2](https://pm2.keymetrics.io/). Here the command for the cr
 
 ## TODO
 
+- [ ] Cron script instead of using PM2 or others
 - [ ] Second script: sync different accounts playlists
-- [ ] Create page to generate an access_token
+- [x] Create page to generate an access_token
