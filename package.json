@@ -1,14 +1,18 @@
 {
   "name": "dzr-cron",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Deezer Cron Scripts",
   "scripts": {
-    "last-fav-tracks": "node cron-last-fav-tracks.js"
+    "start": "node ./index.js",
+    "dev": "cross-env NODE_ENV=development node ./index.js"
   },
   "author": "smndhm",
   "license": "ISC",
   "dependencies": {
     "axios": "^0.19.2",
-    "dotenv": "^8.2.0"
+    "cron": "^1.8.2"
+  },
+  "devDependencies": {
+    "cross-env": "^7.0.2"
   }
 }
