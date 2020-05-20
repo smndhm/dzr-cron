@@ -21,9 +21,9 @@
           document.location.pathname +
           "channel.html",
       });
-      function getToken() {
+      const getToken = () => {
         DZ.login(
-          function (response) {
+          (response) => {
             if (response.authResponse) {
               document.getElementById("token").innerHTML =
                 response.authResponse.accessToken;
@@ -33,7 +33,7 @@
             perms: "offline_access,manage_library,delete_library",
           }
         );
-      }
+      };
     </script>
   </body>
 </html>
