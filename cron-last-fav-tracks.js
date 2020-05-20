@@ -1,27 +1,18 @@
-// .ENV
-require("dotenv").config();
-
-if (!process.env.DZR_ACCESS_TOKEN || !process.env.LAST_FAV_PLAYLIST_ID) {
-  console.error(".env not configured");
-  return;
-}
-
 // AXIOS PARAMS
 const axios = require("axios");
 axios.defaults.baseURL = "https://api.deezer.com";
-// axios params
-const access_token = process.env.DZR_ACCESS_TOKEN;
-const params = {
+
+exports.lastFavTracks = async ({
   access_token,
-};
+  playlistId,
+  nbTracks = 50,
+  noExplicitLyrics = false,
+}) => {
+  if (!access_token || !playlistId) {
+    console.error("Missing parameters in cron");
+    return;
+  }
 
-// SET QUERY SETTINGS
-const dzrQuerySettings = {
-  nbTracks: process.env.LAST_FAV_PLAYLIST_NB_TRACKS || 50,
-  noExplicitLyrics: process.env.LAST_FAV_PLAYLIST_NO_EXPLICIT === "true",
-};
-
-(async () => {
   try {
     console.log("Script started...");
 
@@ -31,7 +22,9 @@ const dzrQuerySettings = {
     } = await axios({
       method: "get",
       url: "/user/me/permissions",
-      params,
+      params: {
+        access_token,
+      },
     });
 
     if (
@@ -58,12 +51,10 @@ const dzrQuerySettings = {
     dzrFavTracks.sort((a, b) => b.time_add - a.time_add);
     // filter tracks
     dzrFavTracks = dzrFavTracks.filter(
-      (track) =>
-        track.readable &&
-        (!dzrQuerySettings.noExplicitLyrics || track.explicit_lyrics)
+      (track) => track.readable && (!noExplicitLyrics || !track.explicit_lyrics)
     );
     // limit to N tracks
-    dzrFavTracks = dzrFavTracks.slice(0, dzrQuerySettings.nbTracks);
+    dzrFavTracks = dzrFavTracks.slice(0, nbTracks);
     const dzrFavTracksId = dzrFavTracks.map((track) => track.id);
 
     // GET OFFLINE PLAYLIST TRACKS
@@ -73,8 +64,10 @@ const dzrQuerySettings = {
       },
     } = await axios({
       method: "get",
-      url: `/playlist/${process.env.LAST_FAV_PLAYLIST_ID}`,
-      params,
+      url: `/playlist/${playlistId}`,
+      params: {
+        access_token,
+      },
     });
     const dzrOfflinePlaylistTracksId = dzrOfflinePlaylistTracks.map(
       (track) => track.id
@@ -87,7 +80,7 @@ const dzrQuerySettings = {
     if (tracksToRemove.length) {
       await axios({
         method: "delete",
-        url: `/playlist/${process.env.LAST_FAV_PLAYLIST_ID}/tracks`,
+        url: `/playlist/${playlistId}/tracks`,
         params: {
           access_token,
           songs: tracksToRemove.join(","),
@@ -103,7 +96,7 @@ const dzrQuerySettings = {
     if (tracksToAdd.length) {
       await axios({
         method: "post",
-        url: `/playlist/${process.env.LAST_FAV_PLAYLIST_ID}/tracks`,
+        url: `/playlist/${playlistId}/tracks`,
         params: {
           access_token,
           songs: tracksToAdd.join(","),
@@ -116,4 +109,4 @@ const dzrQuerySettings = {
   } catch (e) {
     console.error(e);
   }
-})();
+};
