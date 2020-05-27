@@ -41,8 +41,6 @@ exports.syncPlaylists = async (playlists) => {
         // ADD PLAYLIST ACCESS TOKEN TO RESPONSE
         if (!data.error) {
           data.access_token = access_token;
-        } else {
-          data.playlistId = playlistId;
         }
         return data;
       })

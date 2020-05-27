@@ -19,12 +19,13 @@ for (const cron of crons) {
       switch (cron.action) {
         case "last-fav-tracks":
           lastFavTracks(cron.arguments);
-          return;
+          break;
         case "sync-playlists":
           syncPlaylists(cron.arguments);
-          return;
+          break;
         default:
           console.error("Wrong or missing action");
+          break;
       }
     },
     null,
