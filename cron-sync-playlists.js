@@ -2,25 +2,16 @@
 const axios = require("axios");
 axios.defaults.baseURL = "https://api.deezer.com";
 
-exports.syncPlaylists = async (playlists) => {
-  if (!playlists || !Array.isArray(playlists) || !playlists.length) {
-    console.error(
-      "[Cron Sync Playlist]",
-      "Missing or wrong parameters in cron"
-    );
-    return;
-  } else if (playlists.length === 1) {
-    console.error("[Cron Sync Playlist]", "Needs at least 2 playlists");
-    return;
-  }
-
-  // KEEP PLAYLISTS WITH NEEDED PARAMETERS
-  playlists = playlists.filter(
+exports.syncPlaylists = async (playlists = []) => {
+  playlists = (Array.isArray(playlists) ? playlists : []).filter(
     (playlist) => playlist.access_token && playlist.playlistId
   );
 
   if (playlists.length < 2) {
-    console.error("[Cron Sync Playlist]", "Missing parameters in playlists");
+    console.error(
+      "[Cron Sync Playlist]",
+      "Wrong configuration for cron arguments"
+    );
     return;
   }
 
@@ -28,33 +19,22 @@ exports.syncPlaylists = async (playlists) => {
     console.log("[Cron Sync Playlist]", "Script started...");
 
     // GET ALL PLAYLISTS
-    let dzrPlaylists = await Promise.all(
-      playlists.map(async ({ access_token, playlistId }) => {
-        const { data } = await axios({
-          method: "get",
-          url: `/playlist/${playlistId}`,
-          params: {
-            access_token,
-            limit: 2000,
-          },
-        });
-        // ADD PLAYLIST ACCESS TOKEN TO RESPONSE
-        if (!data.error) {
-          data.access_token = access_token;
-        }
-        return data;
-      })
-    );
-
-    // CHECK IF ERROR
-    const dzrErrors = dzrPlaylists.filter((playlist) => playlist.error);
-
-    if (dzrErrors.length) {
-      console.error(
-        "[Cron Sync Playlist]",
-        `${dzrErrors.length} of ${dzrPlaylists.length} playlist(s) in error.`
-      );
-      dzrPlaylists = dzrPlaylists.filter((playlist) => !playlist.error);
+    const dzrPlaylists = [];
+    for await (const { access_token, playlistId } of playlists) {
+      const { data } = await axios({
+        method: "get",
+        url: `/playlist/${playlistId}`,
+        params: {
+          access_token,
+          limit: 2000,
+        },
+      });
+      if (!data.error) {
+        data.access_token = access_token;
+        dzrPlaylists.push(data);
+      } else {
+        console.error("[Cron Sync Playlist]", "API Error Response", data.error);
+      }
     }
 
     if (dzrPlaylists.length < 2) {
@@ -68,8 +48,10 @@ exports.syncPlaylists = async (playlists) => {
       .reduce((acc, curr) => {
         return [...acc, ...curr.tracks.data];
       }, [])
-      // ORDER BY TIME ADD
-      .sort((a, b) => a.time_add - b.time_add)
+      // ORDER BY TIME ADD (IF SAME, ORDER BY ID)
+      .sort((a, b) =>
+        a.time_add - b.time_add !== 0 ? a.time_add - b.time_add : a.id - b.id
+      )
       // IF 2 TRACS ARE THE SAME, KEEP FIRST ADDED
       .reduce((acc, curr) => {
         if (acc.map((track) => track.id).indexOf(curr.id) === -1) {
