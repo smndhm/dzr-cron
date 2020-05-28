@@ -1,5 +1,6 @@
 // import cron tasks
 const { lastFavTracks } = require("./cron-last-fav-tracks");
+const { syncPlaylists } = require("./cron-sync-playlists");
 
 // Cron Job
 const CronJob = require("cron").CronJob;
@@ -15,8 +16,16 @@ for (const cron of crons) {
   const dzrCronJob = new CronJob(
     cron.refreshInterval,
     () => {
-      if (cron.action === "last-fav-tracks") {
-        lastFavTracks(cron.arguments);
+      switch (cron.action) {
+        case "last-fav-tracks":
+          lastFavTracks(cron.arguments);
+          break;
+        case "sync-playlists":
+          syncPlaylists(cron.arguments);
+          break;
+        default:
+          console.error("Wrong or missing action");
+          break;
       }
     },
     null,

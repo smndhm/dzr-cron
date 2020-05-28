@@ -9,12 +9,12 @@ exports.lastFavTracks = async ({
   noExplicitLyrics = false,
 }) => {
   if (!access_token || !playlistId) {
-    console.error("Missing parameters in cron");
+    console.error("[Cron Last Fav Tracks]", "Missing parameters in cron");
     return;
   }
 
   try {
-    console.log("Script started...");
+    console.log("[Cron Last Fav Tracks]", "Script started...");
 
     // GET USER PERMISSIONS
     const {
@@ -32,7 +32,10 @@ exports.lastFavTracks = async ({
       !dzrPermissions.manage_library ||
       !dzrPermissions.delete_library
     ) {
-      console.error("access_token missing permissions");
+      console.error(
+        "[Cron Last Fav Tracks]",
+        "access_token missing permissions"
+      );
       return;
     }
 
@@ -86,7 +89,10 @@ exports.lastFavTracks = async ({
           songs: tracksToRemove.join(","),
         },
       });
-      console.log(`${tracksToRemove.length} track(s) removed.`);
+      console.log(
+        "[Cron Last Fav Tracks]",
+        `${tracksToRemove.length} track(s) removed from playlist ${playlistId}.`
+      );
     }
 
     // GET TRACKS TO ADD
@@ -102,11 +108,14 @@ exports.lastFavTracks = async ({
           songs: tracksToAdd.join(","),
         },
       });
-      console.log(`${tracksToAdd.length} track(s) added.`);
+      console.log(
+        "[Cron Last Fav Tracks]",
+        `${tracksToAdd.length} track(s) added to playlist ${playlistId}.`
+      );
     }
 
-    console.log("Script ended!");
+    console.log("[Cron Last Fav Tracks]", "Script ended!");
   } catch (e) {
-    console.error(e);
+    console.error("[Cron Last Fav Tracks]", e);
   }
 };
