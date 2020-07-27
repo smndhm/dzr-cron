@@ -50,6 +50,7 @@ exports.lastFavTracks = async ({
         limit: 2000,
       },
     });
+
     // most recent first
     dzrFavTracks.sort((a, b) => b.time_add - a.time_add);
     // filter tracks
@@ -62,14 +63,13 @@ exports.lastFavTracks = async ({
 
     // GET OFFLINE PLAYLIST TRACKS
     const {
-      data: {
-        tracks: { data: dzrOfflinePlaylistTracks },
-      },
+      data: { data: dzrOfflinePlaylistTracks },
     } = await axios({
       method: "get",
-      url: `/playlist/${playlistId}`,
+      url: `/playlist/${playlistId}/tracks`,
       params: {
         access_token,
+        limit: 2000,
       },
     });
     const dzrOfflinePlaylistTracksId = dzrOfflinePlaylistTracks.map(
