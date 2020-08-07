@@ -93,9 +93,9 @@ You can now simply launch the script using npm: `npm run start` or node: `node .
 
 ## TODO
 
-- [ ] Tests
 - [ ] Check API quota limit with multiples crons
 - [ ] Better logs
+- [x] Tests
 - [x] Second script: sync different accounts playlists
 - [x] Cron script instead of using PM2 or others
 - [x] Create page to generate an access_token

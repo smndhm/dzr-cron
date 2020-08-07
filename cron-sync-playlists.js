@@ -23,13 +23,14 @@ exports.syncPlaylists = async (playlists = []) => {
     for await (const { access_token, playlistId } of playlists) {
       const { data } = await axios({
         method: "get",
-        url: `/playlist/${playlistId}`,
+        url: `/playlist/${playlistId}/tracks`,
         params: {
           access_token,
           limit: 2000,
         },
       });
       if (!data.error) {
+        data.id = playlistId;
         data.access_token = access_token;
         dzrPlaylists.push(data);
       } else {
@@ -46,13 +47,13 @@ exports.syncPlaylists = async (playlists = []) => {
     const playlistsTracks = dzrPlaylists
       //GROUP ALL TRACKS
       .reduce((acc, curr) => {
-        return [...acc, ...curr.tracks.data];
+        return [...acc, ...curr.data];
       }, [])
       // ORDER BY TIME ADD (IF SAME, ORDER BY ID)
       .sort((a, b) =>
         a.time_add - b.time_add !== 0 ? a.time_add - b.time_add : a.id - b.id
       )
-      // IF 2 TRACS ARE THE SAME, KEEP FIRST ADDED
+      // IF 2 TRACKS ARE THE SAME, KEEP FIRST ADDED
       .reduce((acc, curr) => {
         if (acc.map((track) => track.id).indexOf(curr.id) === -1) {
           acc.push(curr);
@@ -66,7 +67,7 @@ exports.syncPlaylists = async (playlists = []) => {
     for (const {
       access_token,
       id: playlistId,
-      tracks: { data: playlistTracks },
+      data: playlistTracks,
     } of dzrPlaylists) {
       // GET TRACKS TO ADD
       const playlistTracksId = playlistTracks.map((track) => track.id);
