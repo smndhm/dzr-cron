@@ -3,13 +3,12 @@ const { lastFavTracks } = require("./cron-last-fav-tracks");
 const { syncPlaylists } = require("./cron-sync-playlists");
 
 // Cron Job
-const CronJob = require("cron").CronJob;
+const { CronJob } = require("cron");
 
 // Crons parameters
-const { crons } =
-  process.env.NODE_ENV !== "development"
-    ? require("./crons.conf")
-    : require("./crons.dev");
+const { crons } = !["development", "test"].includes(process.env.NODE_ENV)
+  ? require("./crons.conf")
+  : require("./crons.conf-test");
 
 // Start all cron tasks
 for (const cron of crons) {

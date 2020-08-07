@@ -14,6 +14,7 @@ const {
 const mockEntityDeezerTracks = require("./mocks/api-deezer-tracks");
 
 const cronArguments = { access_token: "BLUBLU", playlistId: 1234567890 };
+
 describe("Last Favorite Tracks Cron", () => {
   afterEach(() => {
     cleanAll();
