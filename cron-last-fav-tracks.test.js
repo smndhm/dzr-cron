@@ -1,47 +1,22 @@
 const { lastFavTracks } = require("./cron-last-fav-tracks");
 
 // MOCK
-const nock = require("nock");
+const {
+  nockUserMePermissions,
+  nockUserMeTracks,
+  nockGetPlaylistIdTracks,
+  nockDeletePlaylistIdTracks,
+  nockPostPlaylistIdTracks,
+  cleanAll,
+  nockThrowError,
+  nockRespondError,
+} = require("./mocks/nocks");
 const mockEntityDeezerTracks = require("./mocks/api-deezer-tracks");
-
-const nockUserMePermissions = (value = true) =>
-  nock("https://api.deezer.com")
-    .get(/\/user\/me\/permissions/)
-    .reply(200, {
-      permissions: {
-        basic_access: value,
-        offline_access: value,
-        manage_library: value,
-        delete_library: value,
-      },
-    });
-
-const nockUserMeTracks = (response) =>
-  nock("https://api.deezer.com")
-    .get(/\/user\/me\/tracks/)
-    .reply(200, response);
-
-const nockPlaylistIdTracks = () =>
-  nock("https://api.deezer.com")
-    .get(/\/playlist\/\d+\/tracks/)
-    .reply(200, {
-      ...mockEntityDeezerTracks,
-    });
-
-const nockDeletePlaylistIdTracks = () =>
-  nock("https://api.deezer.com")
-    .delete(/\/playlist\/\d+\/tracks/)
-    .reply(200, true);
-
-const nockPostPlaylistIdTracks = () =>
-  nock("https://api.deezer.com")
-    .post(/\/playlist\/\d+\/tracks/)
-    .reply(200, true);
 
 const cronArguments = { access_token: "BLUBLU", playlistId: 1234567890 };
 describe("Last Favorite Tracks Cron", () => {
   afterEach(() => {
-    nock.cleanAll();
+    cleanAll();
   });
 
   test("lastFavTracks should be defined", () => {
@@ -72,9 +47,9 @@ describe("Last Favorite Tracks Cron", () => {
   });
 
   test("Should not update the playlist", async () => {
-    const mockUserMePermissions = nockUserMePermissions(true);
+    const mockUserMePermissions = nockUserMePermissions();
     const mockUserMeTracks = nockUserMeTracks({ ...mockEntityDeezerTracks });
-    const mockPlaylistIdTracks = nockPlaylistIdTracks();
+    const mockGetPlaylistIdTracks = nockGetPlaylistIdTracks();
     const mockDeletePlaylistIdTracks = nockDeletePlaylistIdTracks();
     const mockPostPlaylistIdTracks = nockPostPlaylistIdTracks();
 
@@ -82,14 +57,14 @@ describe("Last Favorite Tracks Cron", () => {
 
     expect(mockUserMePermissions.isDone()).toBeTruthy();
     expect(mockUserMeTracks.isDone()).toBeTruthy();
-    expect(mockPlaylistIdTracks.isDone()).toBeTruthy();
-    expect(mockPlaylistIdTracks.isDone()).toBeTruthy();
+    expect(mockGetPlaylistIdTracks.isDone()).toBeTruthy();
+    expect(mockGetPlaylistIdTracks.isDone()).toBeTruthy();
     expect(mockDeletePlaylistIdTracks.isDone()).toBeFalsy();
     expect(mockPostPlaylistIdTracks.isDone()).toBeFalsy();
   });
 
   test("Should only add track to the playlist", async () => {
-    const mockUserMePermissions = nockUserMePermissions(true);
+    const mockUserMePermissions = nockUserMePermissions();
     const favTracks = JSON.parse(JSON.stringify(mockEntityDeezerTracks));
     favTracks.data.push({
       id: 10,
@@ -98,7 +73,7 @@ describe("Last Favorite Tracks Cron", () => {
       time_add: 10,
     });
     const mockUserMeTracks = nockUserMeTracks(favTracks);
-    const mockPlaylistIdTracks = nockPlaylistIdTracks();
+    const mockGetPlaylistIdTracks = nockGetPlaylistIdTracks();
     const mockDeletePlaylistIdTracks = nockDeletePlaylistIdTracks();
     const mockPostPlaylistIdTracks = nockPostPlaylistIdTracks();
 
@@ -106,14 +81,14 @@ describe("Last Favorite Tracks Cron", () => {
 
     expect(mockUserMePermissions.isDone()).toBeTruthy();
     expect(mockUserMeTracks.isDone()).toBeTruthy();
-    expect(mockPlaylistIdTracks.isDone()).toBeTruthy();
-    expect(mockPlaylistIdTracks.isDone()).toBeTruthy();
+    expect(mockGetPlaylistIdTracks.isDone()).toBeTruthy();
+    expect(mockGetPlaylistIdTracks.isDone()).toBeTruthy();
     expect(mockDeletePlaylistIdTracks.isDone()).toBeFalsy();
     expect(mockPostPlaylistIdTracks.isDone()).toBeTruthy();
   });
 
   test("Should add new track and remove explicit lyrics track to the playlist", async () => {
-    const mockUserMePermissions = nockUserMePermissions(true);
+    const mockUserMePermissions = nockUserMePermissions();
     const favTracks = JSON.parse(JSON.stringify(mockEntityDeezerTracks));
     favTracks.data.push({
       id: 10,
@@ -123,7 +98,7 @@ describe("Last Favorite Tracks Cron", () => {
     });
     favTracks.data[0].explicit_lyrics = true;
     const mockUserMeTracks = nockUserMeTracks(favTracks);
-    const mockPlaylistIdTracks = nockPlaylistIdTracks();
+    const mockGetPlaylistIdTracks = nockGetPlaylistIdTracks();
     const mockDeletePlaylistIdTracks = nockDeletePlaylistIdTracks();
     const mockPostPlaylistIdTracks = nockPostPlaylistIdTracks();
 
@@ -134,14 +109,14 @@ describe("Last Favorite Tracks Cron", () => {
 
     expect(mockUserMePermissions.isDone()).toBeTruthy();
     expect(mockUserMeTracks.isDone()).toBeTruthy();
-    expect(mockPlaylistIdTracks.isDone()).toBeTruthy();
-    expect(mockPlaylistIdTracks.isDone()).toBeTruthy();
+    expect(mockGetPlaylistIdTracks.isDone()).toBeTruthy();
+    expect(mockGetPlaylistIdTracks.isDone()).toBeTruthy();
     expect(mockDeletePlaylistIdTracks.isDone()).toBeTruthy();
     expect(mockPostPlaylistIdTracks.isDone()).toBeTruthy();
   });
 
   test("Should add and delete track to the playlist", async () => {
-    const mockUserMePermissions = nockUserMePermissions(true);
+    const mockUserMePermissions = nockUserMePermissions();
     const favTracks = JSON.parse(JSON.stringify(mockEntityDeezerTracks));
     favTracks.data.push({
       id: 10,
@@ -150,7 +125,7 @@ describe("Last Favorite Tracks Cron", () => {
       time_add: 10,
     });
     const mockUserMeTracks = nockUserMeTracks(favTracks);
-    const mockPlaylistIdTracks = nockPlaylistIdTracks();
+    const mockGetPlaylistIdTracks = nockGetPlaylistIdTracks();
     const mockDeletePlaylistIdTracks = nockDeletePlaylistIdTracks();
     const mockPostPlaylistIdTracks = nockPostPlaylistIdTracks();
 
@@ -158,19 +133,27 @@ describe("Last Favorite Tracks Cron", () => {
 
     expect(mockUserMePermissions.isDone()).toBeTruthy();
     expect(mockUserMeTracks.isDone()).toBeTruthy();
-    expect(mockPlaylistIdTracks.isDone()).toBeTruthy();
-    expect(mockPlaylistIdTracks.isDone()).toBeTruthy();
+    expect(mockGetPlaylistIdTracks.isDone()).toBeTruthy();
+    expect(mockGetPlaylistIdTracks.isDone()).toBeTruthy();
     expect(mockDeletePlaylistIdTracks.isDone()).toBeTruthy();
     expect(mockPostPlaylistIdTracks.isDone()).toBeTruthy();
   });
 
   test("Should throw on api error response", async () => {
-    const mockUserMePermissions = nock("https://api.deezer.com")
-      .get(/\/user\/me\/permissions/)
-      .reply(500, {});
+    const mockRespondError = nockThrowError(/\/user\/me\/permissions/);
 
     const cron = await lastFavTracks(cronArguments);
+
     expect(cron).toBeUndefined();
-    expect(mockUserMePermissions.isDone()).toBeTruthy();
+    expect(mockRespondError.isDone()).toBeTruthy();
+  });
+
+  test("Should return if api respond an error", async () => {
+    const mockRespondError = nockRespondError(/\/user\/me\/permissions/);
+
+    const cron = await lastFavTracks(cronArguments);
+
+    expect(cron).toBeUndefined();
+    expect(mockRespondError.isDone()).toBeTruthy();
   });
 });
