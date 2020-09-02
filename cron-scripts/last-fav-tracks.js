@@ -1,6 +1,10 @@
-// AXIOS PARAMS
-const axios = require("axios");
-axios.defaults.baseURL = "https://api.deezer.com";
+const {
+  getUserPermissions,
+  getUserTracks,
+  getPlaylistTracks,
+  deletePlaylistTracks,
+  postPlaylistTracks,
+} = require("../dzr-utils");
 
 exports.lastFavTracks = async ({
   access_token,
@@ -17,15 +21,7 @@ exports.lastFavTracks = async ({
     console.log("[Cron Last Fav Tracks]", "Script started...");
 
     // GET USER PERMISSIONS
-    const {
-      data: { permissions: dzrPermissions },
-    } = await axios({
-      method: "get",
-      url: "/user/me/permissions",
-      params: {
-        access_token,
-      },
-    });
+    const dzrPermissions = await getUserPermissions(access_token);
 
     if (
       !dzrPermissions ||
@@ -40,16 +36,7 @@ exports.lastFavTracks = async ({
     }
 
     // GET LAST FAV TRACKS
-    let {
-      data: { data: dzrFavTracks },
-    } = await axios({
-      method: "get",
-      url: "/user/me/tracks",
-      params: {
-        access_token,
-        limit: 2000,
-      },
-    });
+    let dzrFavTracks = await getUserTracks(access_token);
 
     // most recent first
     dzrFavTracks.sort((a, b) => b.time_add - a.time_add);
@@ -62,16 +49,10 @@ exports.lastFavTracks = async ({
     const dzrFavTracksId = dzrFavTracks.map((track) => track.id);
 
     // GET OFFLINE PLAYLIST TRACKS
-    const {
-      data: { data: dzrOfflinePlaylistTracks },
-    } = await axios({
-      method: "get",
-      url: `/playlist/${playlistId}/tracks`,
-      params: {
-        access_token,
-        limit: 2000,
-      },
-    });
+    const { data: dzrOfflinePlaylistTracks } = await getPlaylistTracks(
+      access_token,
+      playlistId
+    );
     const dzrOfflinePlaylistTracksId = dzrOfflinePlaylistTracks.map(
       (track) => track.id
     );
@@ -81,14 +62,11 @@ exports.lastFavTracks = async ({
       (track) => !dzrFavTracksId.includes(track)
     );
     if (tracksToRemove.length) {
-      await axios({
-        method: "delete",
-        url: `/playlist/${playlistId}/tracks`,
-        params: {
-          access_token,
-          songs: tracksToRemove.join(","),
-        },
-      });
+      await deletePlaylistTracks(
+        access_token,
+        playlistId,
+        tracksToRemove.join(",")
+      );
       console.log(
         "[Cron Last Fav Tracks]",
         `${tracksToRemove.length} track(s) removed from playlist ${playlistId}.`
@@ -100,14 +78,7 @@ exports.lastFavTracks = async ({
       (track) => !dzrOfflinePlaylistTracksId.includes(track)
     );
     if (tracksToAdd.length) {
-      await axios({
-        method: "post",
-        url: `/playlist/${playlistId}/tracks`,
-        params: {
-          access_token,
-          songs: tracksToAdd.join(","),
-        },
-      });
+      await postPlaylistTracks(access_token, playlistId, tracksToAdd.join(","));
       console.log(
         "[Cron Last Fav Tracks]",
         `${tracksToAdd.length} track(s) added to playlist ${playlistId}.`

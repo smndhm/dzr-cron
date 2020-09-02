@@ -1,6 +1,6 @@
 // import cron tasks
-const { lastFavTracks } = require("./cron-last-fav-tracks");
-const { syncPlaylists } = require("./cron-sync-playlists");
+const { lastFavTracks } = require("./cron-scripts/last-fav-tracks");
+const { syncPlaylists } = require("./cron-scripts/sync-playlists");
 
 // Cron Job
 const { CronJob } = require("cron");

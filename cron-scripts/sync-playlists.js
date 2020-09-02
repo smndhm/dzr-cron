@@ -1,6 +1,8 @@
-// AXIOS PARAMS
-const axios = require("axios");
-axios.defaults.baseURL = "https://api.deezer.com";
+const {
+  getPlaylistTracks,
+  postPlaylistTracks,
+  postPlaylistTracksOrder,
+} = require("../dzr-utils");
 
 exports.syncPlaylists = async (playlists = []) => {
   playlists = (Array.isArray(playlists) ? playlists : []).filter(
@@ -21,14 +23,7 @@ exports.syncPlaylists = async (playlists = []) => {
     // GET ALL PLAYLISTS
     const dzrPlaylists = [];
     for await (const { access_token, playlistId } of playlists) {
-      const { data } = await axios({
-        method: "get",
-        url: `/playlist/${playlistId}/tracks`,
-        params: {
-          access_token,
-          limit: 2000,
-        },
-      });
+      const data = await getPlaylistTracks(access_token, playlistId);
       if (!data.error) {
         data.id = playlistId;
         data.access_token = access_token;
@@ -75,14 +70,11 @@ exports.syncPlaylists = async (playlists = []) => {
         (track) => !playlistTracksId.includes(track)
       );
       if (tracksToAdd.length) {
-        await axios({
-          method: "post",
-          url: `/playlist/${playlistId}/tracks`,
-          params: {
-            access_token,
-            songs: tracksToAdd.join(","),
-          },
-        });
+        await postPlaylistTracks(
+          access_token,
+          playlistId,
+          tracksToAdd.join(",")
+        );
         console.log(
           "[Cron Sync Playlist]",
           `${tracksToAdd.length} track(s) added to playlist ${playlistId}.`
@@ -91,14 +83,11 @@ exports.syncPlaylists = async (playlists = []) => {
 
       // UPDATE ORDER
       if (playlistTracksId.join(",") !== playlistsTracks.join(",")) {
-        await axios({
-          method: "post",
-          url: `/playlist/${playlistId}/tracks`,
-          params: {
-            access_token,
-            order: playlistsTracks.join(","),
-          },
-        });
+        await postPlaylistTracksOrder(
+          access_token,
+          playlistId,
+          playlistsTracks.join(",")
+        );
         console.log(
           "[Cron Sync Playlist]",
           `Tracks ordered in playlist ${playlistId}.`
