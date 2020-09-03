@@ -7,8 +7,8 @@ const { CronJob } = require("cron");
 
 // Crons parameters
 const { crons } = !["development", "test"].includes(process.env.NODE_ENV)
-  ? require("./crons.conf")
-  : require("./crons.conf-test");
+  ? require("./config/crons.conf")
+  : require("./config/crons.conf-test");
 
 // Start all cron tasks
 for (const cron of crons) {

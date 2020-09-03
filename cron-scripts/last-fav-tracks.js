@@ -4,7 +4,7 @@ const {
   getPlaylistTracks,
   deletePlaylistTracks,
   postPlaylistTracks,
-} = require("../dzr-utils");
+} = require("../common/dzr-utils");
 
 exports.lastFavTracks = async ({
   access_token,

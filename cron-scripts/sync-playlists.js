@@ -2,7 +2,7 @@ const {
   getPlaylistTracks,
   postPlaylistTracks,
   postPlaylistTracksOrder,
-} = require("../dzr-utils");
+} = require("../common/dzr-utils");
 
 exports.syncPlaylists = async (playlists = []) => {
   playlists = (Array.isArray(playlists) ? playlists : []).filter(
