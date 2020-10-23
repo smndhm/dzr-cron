@@ -1,4 +1,4 @@
-const { syncPlaylists } = require("./cron-sync-playlists");
+const { syncPlaylists } = require("./sync-playlists");
 
 // MOCK
 const {
@@ -7,8 +7,8 @@ const {
   cleanAll,
   nockThrowError,
   nockRespondError,
-} = require("./mocks/nocks");
-const mockEntityDeezerTracks = require("./mocks/api-deezer-tracks");
+} = require("../mocks/nocks");
+const mockEntityDeezerTracks = require("../mocks/api-deezer-tracks");
 
 const cronArguments = [
   { access_token: "BLUBLU", playlistId: 1234567890 },
