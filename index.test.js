@@ -1,12 +1,12 @@
 const mockLastFavTracks = jest.fn();
-jest.mock("./cron-last-fav-tracks", () => {
+jest.mock("./cron-scripts/last-fav-tracks", () => {
   return {
     lastFavTracks: mockLastFavTracks,
   };
 });
 
 const mockSyncPlaylists = jest.fn();
-jest.mock("./cron-sync-playlists", () => {
+jest.mock("./cron-scripts/sync-playlists", () => {
   return {
     syncPlaylists: mockSyncPlaylists,
   };
