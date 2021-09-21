@@ -10,7 +10,7 @@
   "author": "smndhm",
   "license": "ISC",
   "dependencies": {
-    "axios": "^0.19.2",
+    "axios": "^0.21.4",
     "cron": "^1.8.2"
   },
   "devDependencies": {
