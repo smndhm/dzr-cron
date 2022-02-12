@@ -1,11 +1,12 @@
 {
   "name": "dzr-cron",
-  "version": "1.2.0",
+  "version": "2.0.0",
   "description": "Deezer Cron Scripts",
   "scripts": {
     "start": "node ./index.js",
-    "dev": "cross-env NODE_ENV=development node ./index.js",
-    "test": "jest --coverage"
+    "test": "jest --coverage",
+    "lint": "eslint \"**/*.js\"",
+    "lint:fix": "eslint \"**/*.js\" --fix"
   },
   "author": "smndhm",
   "license": "ISC",
@@ -14,7 +15,7 @@
     "cron": "^1.8.2"
   },
   "devDependencies": {
-    "cross-env": "^7.0.2",
+    "eslint": "^8.9.0",
     "jest": "^26.6.1",
     "nock": "^13.0.4"
   }
