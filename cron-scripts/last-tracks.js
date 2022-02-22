@@ -5,9 +5,9 @@ const {
 	postPlaylistTracks,
 } = require('../common/dzr-utils');
 
-const SCRIPT = 'Cron Last Fav Tracks';
+const SCRIPT = 'Cron Last Tracks';
 
-exports.lastFavTracks = async ({
+exports.lastTracks = async ({
 	playlistId,
 	access_token,
 	playlists = [],

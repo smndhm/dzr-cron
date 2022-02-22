@@ -1,4 +1,4 @@
-const { lastFavTracks } = require('./last-tracks');
+const { lastTracks } = require('./last-tracks');
 
 // MOCK
 const {
@@ -17,18 +17,18 @@ const cronArguments = {
 	playlists: [{ access_token: 'BLUBLU', playlistId: 9876543210 }],
 };
 
-describe('Last Favorite Tracks Cron', () => {
+describe('Last Tracks Cron', () => {
 	afterEach(() => {
 		cleanAll();
 	});
 
-	test('lastFavTracks should be defined', () => {
-		expect(lastFavTracks).toBeDefined();
+	test('lastTracks should be defined', () => {
+		expect(lastTracks).toBeDefined();
 	});
 
 	test('Should throw without parameters', async () => {
 		try {
-			await lastFavTracks();
+			await lastTracks();
 		} catch (err) {
 			expect(err.message).toEqual(
 				expect.stringContaining('Cannot destructure property'),
@@ -37,7 +37,7 @@ describe('Last Favorite Tracks Cron', () => {
 	});
 
 	test('Should return on missing mendatory parameters', async () => {
-		const cron = await lastFavTracks({});
+		const cron = await lastTracks({});
 		expect(cron).toBeUndefined();
 	});
 
@@ -46,7 +46,7 @@ describe('Last Favorite Tracks Cron', () => {
 		const mockDeletePlaylistIdTracks = nockDeletePlaylistIdTracks();
 		const mockPostPlaylistIdTracks = nockPostPlaylistIdTracks();
 
-		await lastFavTracks(cronArguments);
+		await lastTracks(cronArguments);
 
 		expect(mockGetPlaylistIdTracks.isDone()).toBeTruthy();
 		expect(mockDeletePlaylistIdTracks.isDone()).toBeFalsy();
@@ -54,68 +54,68 @@ describe('Last Favorite Tracks Cron', () => {
 	});
 
 	test('Should only add track to the playlist', async () => {
-		const favTracks = JSON.parse(JSON.stringify(mockEntityDeezerTracks));
-		favTracks.data.push({
+		const lastAddedTracks = JSON.parse(JSON.stringify(mockEntityDeezerTracks));
+		lastAddedTracks.data.push({
 			id: 10,
 			readable: true,
 			explicit_lyrics: false,
 			time_add: 10,
 		});
-		const mockGetPlaylistIdTracksFav = nockGetPlaylistIdTracks(1, favTracks);
+		const mockGetPlaylistIdAddedTracks = nockGetPlaylistIdTracks(1, lastAddedTracks);
 		const mockGetPlaylistIdTracks = nockGetPlaylistIdTracks();
 		const mockDeletePlaylistIdTracks = nockDeletePlaylistIdTracks();
 		const mockPostPlaylistIdTracks = nockPostPlaylistIdTracks();
 
-		await lastFavTracks(cronArguments);
+		await lastTracks(cronArguments);
 
 		expect(mockGetPlaylistIdTracks.isDone()).toBeTruthy();
-		expect(mockGetPlaylistIdTracksFav.isDone()).toBeTruthy();
+		expect(mockGetPlaylistIdAddedTracks.isDone()).toBeTruthy();
 		expect(mockDeletePlaylistIdTracks.isDone()).toBeFalsy();
 		expect(mockPostPlaylistIdTracks.isDone()).toBeTruthy();
 	});
 
 	test('Should add new track and remove explicit lyrics track to the playlist', async () => {
-		const favTracks = JSON.parse(JSON.stringify(mockEntityDeezerTracks));
-		favTracks.data.push({
+		const lastAddedTracks = JSON.parse(JSON.stringify(mockEntityDeezerTracks));
+		lastAddedTracks.data.push({
 			id: 10,
 			readable: true,
 			explicit_lyrics: false,
 			time_add: 10,
 		});
-		favTracks.data[0].explicit_lyrics = true;
-		const mockGetPlaylistIdTracksFav = nockGetPlaylistIdTracks(1, favTracks);
+		lastAddedTracks.data[0].explicit_lyrics = true;
+		const mockGetPlaylistIdAddedTracks = nockGetPlaylistIdTracks(1, lastAddedTracks);
 		const mockGetPlaylistIdTracks = nockGetPlaylistIdTracks();
 		const mockDeletePlaylistIdTracks = nockDeletePlaylistIdTracks();
 		const mockPostPlaylistIdTracks = nockPostPlaylistIdTracks();
 
-		await lastFavTracks({
+		await lastTracks({
 			...cronArguments,
 			noExplicitLyrics: true,
 		});
 
 		expect(mockGetPlaylistIdTracks.isDone()).toBeTruthy();
-		expect(mockGetPlaylistIdTracksFav.isDone()).toBeTruthy();
+		expect(mockGetPlaylistIdAddedTracks.isDone()).toBeTruthy();
 		expect(mockDeletePlaylistIdTracks.isDone()).toBeTruthy();
 		expect(mockPostPlaylistIdTracks.isDone()).toBeTruthy();
 	});
 
 	test('Should add and delete track to the playlist', async () => {
-		const favTracks = JSON.parse(JSON.stringify(mockEntityDeezerTracks));
-		favTracks.data.push({
+		const lastAddedTracks = JSON.parse(JSON.stringify(mockEntityDeezerTracks));
+		lastAddedTracks.data.push({
 			id: 10,
 			readable: true,
 			explicit_lyrics: false,
 			time_add: 10,
 		});
-		const mockGetPlaylistIdTracksFav = nockGetPlaylistIdTracks(1, favTracks);
+		const mockGetPlaylistIdAddedTracks = nockGetPlaylistIdTracks(1, lastAddedTracks);
 		const mockGetPlaylistIdTracks = nockGetPlaylistIdTracks();
 		const mockDeletePlaylistIdTracks = nockDeletePlaylistIdTracks();
 		const mockPostPlaylistIdTracks = nockPostPlaylistIdTracks();
 
-		await lastFavTracks({ ...cronArguments, nbTracks: 5 });
+		await lastTracks({ ...cronArguments, nbTracks: 5 });
 
 		expect(mockGetPlaylistIdTracks.isDone()).toBeTruthy();
-		expect(mockGetPlaylistIdTracksFav.isDone()).toBeTruthy();
+		expect(mockGetPlaylistIdAddedTracks.isDone()).toBeTruthy();
 		expect(mockDeletePlaylistIdTracks.isDone()).toBeTruthy();
 		expect(mockPostPlaylistIdTracks.isDone()).toBeTruthy();
 	});
@@ -123,7 +123,7 @@ describe('Last Favorite Tracks Cron', () => {
 	test('Should throw on api error response', async () => {
 		const mockRespondError = nockThrowError(/\/playlist\/\d+\/tracks/);
 
-		const cron = await lastFavTracks(cronArguments);
+		const cron = await lastTracks(cronArguments);
 
 		expect(cron).toBeUndefined();
 		expect(mockRespondError.isDone()).toBeTruthy();
@@ -132,7 +132,7 @@ describe('Last Favorite Tracks Cron', () => {
 	test('Should return if api respond an error', async () => {
 		const mockRespondError = nockRespondError(/\/playlist\/\d+\/tracks/);
 
-		const cron = await lastFavTracks(cronArguments);
+		const cron = await lastTracks(cronArguments);
 
 		expect(cron).toBeUndefined();
 		expect(mockRespondError.isDone()).toBeTruthy();

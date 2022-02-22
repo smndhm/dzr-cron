@@ -26,7 +26,7 @@ This file exports an array of crons, each cron has the following structure:
 
 ## Scripts
 
-### Last favorites tracks
+### Last playlist tracks
 
 Because it's better to have an offline playlist for the car. Because my favorite tracks playlist has too many tracks to go offline. Because I only wanted my latest favorite tracks, I made this cron.
 
