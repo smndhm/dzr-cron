@@ -20,7 +20,7 @@ describe('Sync Playlists Cron', () => {
 		cleanAll();
 	});
 
-	test('lastFavTracks should be defined', () => {
+	test('lastTracks should be defined', () => {
 		expect(syncPlaylists).toBeDefined();
 	});
 
