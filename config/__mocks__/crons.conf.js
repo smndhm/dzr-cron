@@ -6,8 +6,17 @@ const otherPlaylistId = 9876543210;
 
 exports.crons = [
 	{
+		// remove duplicates
+		refreshInterval: '0 0 * * *', // Every day
+		action: 'remove-duplicates',
+		arguments: {
+			access_token: myAccessToken,
+			playlistId: myPlaylistId,
+		},
+	},
+	{
 		// Car offline playlist
-		refreshInterval: '0 0 * * *', // Every hour
+		refreshInterval: '0 0 * * *', // Every day
 		action: 'last-tracks',
 		playlistId: myPlaylistId,
 		arguments: {
@@ -17,7 +26,7 @@ exports.crons = [
 	},
 	{
 		// Kid playlist
-		refreshInterval: '0 * * * *', // Every day
+		refreshInterval: '0 * * * *', // Every hour
 		action: 'sync-playlists',
 		arguments: [
 			{
