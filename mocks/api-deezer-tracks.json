@@ -2,54 +2,126 @@
   "data": [
     {
       "id": 1,
+      "title_short": "1",
+      "artist": {
+        "id": 1
+      },
+      "album": {
+        "id": 1
+      },
+      "duration": 1,
       "readable": true,
       "explicit_lyrics": false,
       "time_add": 1
     },
     {
       "id": 2,
+      "title_short": "2",
+      "artist": {
+        "id": 2
+      },
+      "album": {
+        "id": 2
+      },
+      "duration": 2,
       "readable": true,
       "explicit_lyrics": false,
       "time_add": 2
     },
     {
       "id": 3,
+      "title_short": "3",
+      "artist": {
+        "id": 3
+      },
+      "album": {
+        "id": 3
+      },
+      "duration": 3,
       "readable": true,
       "explicit_lyrics": false,
       "time_add": 3
     },
     {
       "id": 4,
+      "title_short": "4",
+      "artist": {
+        "id": 4
+      },
+      "album": {
+        "id": 4
+      },
+      "duration": 4,
       "readable": true,
       "explicit_lyrics": false,
       "time_add": 4
     },
     {
       "id": 5,
+      "title_short": "5",
+      "artist": {
+        "id": 5
+      },
+      "album": {
+        "id": 5
+      },
+      "duration": 5,
       "readable": true,
       "explicit_lyrics": false,
       "time_add": 5
     },
     {
       "id": 6,
+      "title_short": "6",
+      "artist": {
+        "id": 6
+      },
+      "album": {
+        "id": 6
+      },
+      "duration": 6,
       "readable": true,
       "explicit_lyrics": false,
       "time_add": 6
     },
     {
       "id": 7,
+      "title_short": "7",
+      "artist": {
+        "id": 7
+      },
+      "album": {
+        "id": 7
+      },
+      "duration": 7,
       "readable": true,
       "explicit_lyrics": false,
       "time_add": 7
     },
     {
       "id": 8,
+      "title_short": "8",
+      "artist": {
+        "id": 8
+      },
+      "album": {
+        "id": 8
+      },
+      "duration": 8,
       "readable": true,
       "explicit_lyrics": true,
       "time_add": 8
     },
     {
       "id": 9,
+      "title_short": "9",
+      "artist": {
+        "id": 9
+      },
+      "album": {
+        "id": 9
+      },
+      "duration": 9,
       "readable": true,
       "explicit_lyrics": false,
       "time_add": 9

@@ -8,6 +8,7 @@ const {
 	nockThrowError,
 	nockRespondError,
 } = require('../mocks/nocks');
+
 const mockEntityDeezerTracks = require('../mocks/api-deezer-tracks');
 
 const cronArguments = [
@@ -20,7 +21,7 @@ describe('Sync Playlists Cron', () => {
 		cleanAll();
 	});
 
-	test('lastTracks should be defined', () => {
+	test('syncPlaylists should be defined', () => {
 		expect(syncPlaylists).toBeDefined();
 	});
 
