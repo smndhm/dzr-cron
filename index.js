@@ -2,6 +2,7 @@
 const { CronJob } = require('cron');
 const { lastTracks } = require('./cron-scripts/last-tracks');
 const { syncPlaylists } = require('./cron-scripts/sync-playlists');
+const { removeDuplicates } = require('./cron-scripts/remove-duplicates');
 
 // Cron Job
 
@@ -19,6 +20,9 @@ for (const cron of crons) {
 				break;
 			case 'sync-playlists':
 				syncPlaylists(cron.arguments);
+				break;
+			case 'remove-duplicates':	
+				removeDuplicates(cron.arguments);
 				break;
 			default:
 				console.error('Wrong or missing action');
