@@ -10,10 +10,16 @@ jest.mock('./cron-scripts/sync-playlists', () => ({
 	syncPlaylists: mockSyncPlaylists,
 }));
 
+const mockRemoveDuplicates = jest.fn();
+jest.mock('./cron-scripts/remove-duplicates', () => ({
+	removeDuplicates: mockRemoveDuplicates,
+}));
+
 describe('Cron index', () => {
 	afterEach(() => {
 		mocklastTracks.mockClear();
 		mockSyncPlaylists.mockClear();
+		mockRemoveDuplicates.mockClear();
 	});
 
 	test('Should run cron during 24 hour', async () => {
@@ -23,5 +29,6 @@ describe('Cron index', () => {
 		jest.advanceTimersByTime(24 * 60 * 60 * 1000);
 		expect(mocklastTracks).toBeCalledTimes(2);
 		expect(mockSyncPlaylists).toBeCalledTimes(25);
+		expect(mockRemoveDuplicates).toBeCalledTimes(2);
 	});
 });
