@@ -101,6 +101,33 @@ Must be an array of objects with the following properties:
   See how to get an access_token on the [Deezer API OAuth doc](https://developers.deezer.com/api/oauth).
 - `playlistId` is the playlist ID you want to synchonize. Must belong to the access_token account.
 
+### Remove duplicates
+
+I have a lot of titles in my favorite playlist and I realized that there could be the same track several times, this is often due to a track present in an album and in an EP, an album that has been reissued, etc. New cron.
+This will delete last duplicate added track.
+
+#### Structure for the `config/cron.conf.js` file
+
+```javascript
+{
+  refreshInterval: "0 0 * * *",
+    action: "remove-duplicates",
+    arguments: {
+        access_token: "frblublublublublublublublublublublublublublublublu",
+        playlistId: 1234567890
+      },
+    ],
+}
+```
+
+#### Arguments
+
+Must be an objects with the following properties:
+
+- `access_token` is your Deezer user token allowing the script to perform actions on your library. Needs `offline_access`, `manage_library` and `delete_library` permissions.  
+  See how to get an access_token on the [Deezer API OAuth doc](https://developers.deezer.com/api/oauth).
+- `playlistId` is the playlist ID you want to synchonize. Must belong to the access_token account.
+
 ## Launch
 
 You can now simply launch the script using npm: `npm run start` or node: `node .\index.js`.
@@ -109,7 +136,7 @@ You can now simply launch the script using npm: `npm run start` or node: `node .
 
 - [ ] Check API quota limit with multiples crons
 - [ ] Better logs
-- [ ] Add cron script to check and remove track if already exist
+- [x] Add cron script to check and remove track if already exist
 - [x] Edit last-tracks cron to be able to set a specific playlist
 - [x] Tests
 - [x] Second script: sync different accounts playlists
