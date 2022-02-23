@@ -1,6 +1,6 @@
 // import cron tasks
 const { CronJob } = require('cron');
-const { lastFavTracks } = require('./cron-scripts/last-tracks');
+const { lastTracks } = require('./cron-scripts/last-tracks');
 const { syncPlaylists } = require('./cron-scripts/sync-playlists');
 const { removeDuplicates } = require('./cron-scripts/remove-duplicates');
 
@@ -16,7 +16,7 @@ for (const cron of crons) {
 		() => {
 			switch (cron.action) {
 			case 'last-tracks':
-				lastFavTracks(cron.arguments);
+				lastTracks(cron.arguments);
 				break;
 			case 'sync-playlists':
 				syncPlaylists(cron.arguments);

@@ -1,8 +1,8 @@
 jest.mock('./config/crons.conf');
 
-const mockLastFavTracks = jest.fn();
+const mocklastTracks = jest.fn();
 jest.mock('./cron-scripts/last-tracks', () => ({
-	lastFavTracks: mockLastFavTracks,
+	lastTracks: mocklastTracks,
 }));
 
 const mockSyncPlaylists = jest.fn();
@@ -17,7 +17,7 @@ jest.mock('./cron-scripts/remove-duplicates', () => ({
 
 describe('Cron index', () => {
 	afterEach(() => {
-		mockLastFavTracks.mockClear();
+		mocklastTracks.mockClear();
 		mockSyncPlaylists.mockClear();
 		mockRemoveDuplicates.mockClear();
 	});
@@ -27,7 +27,7 @@ describe('Cron index', () => {
 		const index = require('./index');
 		expect(index).toBeDefined();
 		jest.advanceTimersByTime(24 * 60 * 60 * 1000);
-		expect(mockLastFavTracks).toBeCalledTimes(2);
+		expect(mocklastTracks).toBeCalledTimes(2);
 		expect(mockSyncPlaylists).toBeCalledTimes(25);
 		expect(mockRemoveDuplicates).toBeCalledTimes(2);
 	});
