@@ -30,7 +30,7 @@ describe('Sync Playlists Cron', () => {
 			await syncPlaylists();
 		} catch (err) {
 			expect(err.message).toEqual(
-				expect.stringContaining('Cannot destructure property'),
+				expect.stringContaining('Cannot destructure property')
 			);
 		}
 	});
@@ -54,7 +54,7 @@ describe('Sync Playlists Cron', () => {
 
 	test('Should not update playlist when they are the same', async () => {
 		const mockGetPlaylistIdTracks = nockGetPlaylistIdTracks(
-			cronArguments.length,
+			cronArguments.length
 		);
 		const mockPostPlaylistIdTracks = nockPostPlaylistIdTracks();
 
@@ -66,7 +66,7 @@ describe('Sync Playlists Cron', () => {
 
 	test('Should update one playlist when one of them has a new track', async () => {
 		const playlistWithNewTrack = JSON.parse(
-			JSON.stringify(mockEntityDeezerTracks),
+			JSON.stringify(mockEntityDeezerTracks)
 		);
 		playlistWithNewTrack.data.push({
 			id: 10,
@@ -77,7 +77,7 @@ describe('Sync Playlists Cron', () => {
 		const mockGetPlaylistIdTracks_1 = nockGetPlaylistIdTracks();
 		const mockGetPlaylistIdTracks_2 = nockGetPlaylistIdTracks(
 			null,
-			playlistWithNewTrack,
+			playlistWithNewTrack
 		);
 		const mockPostPlaylistIdTracks = nockPostPlaylistIdTracks(2);
 
@@ -100,7 +100,7 @@ describe('Sync Playlists Cron', () => {
 	test('Should return if not enought playlists are available', async () => {
 		const mockRespondError = nockRespondError(
 			/\/playlist\/\d+\/tracks/,
-			cronArguments.length,
+			cronArguments.length
 		);
 
 		const cron = await syncPlaylists(cronArguments);
