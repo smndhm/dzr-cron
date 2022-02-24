@@ -1,3 +1,9 @@
+const logger = require('pino')({
+	mixin() {
+		return { script: 'cron-sync-playlists' };
+	},
+	timestamp: () => `,"time":"${new Date(Date.now()).toISOString()}"`
+});
 const {
 	playlistsFilter,
 	getPlaylistTracks,
@@ -5,23 +11,21 @@ const {
 	postPlaylistTracksOrder,
 } = require('../common/dzr-utils');
 
-const SCRIPT = 'Cron Sync Playlists';
-
 exports.syncPlaylists = async (playlists = []) => {
 	if (!Array.isArray(playlists)) {
-		console.error(`[${SCRIPT}]`, 'Wrong configuration for cron arguments');
+		logger.error('Wrong configuration for cron arguments');
 		return;
 	}
 
 	playlists = playlistsFilter(playlists);
 
 	if (playlists.length < 2) {
-		console.error(`[${SCRIPT}]`, 'You must set at least 2 playlists');
+		logger.error('You must set at least 2 playlists');
 		return;
 	}
 
 	try {
-		console.log(`[${SCRIPT}]`, 'Script started...');
+		logger.info('Script started');
 
 		// GET ALL PLAYLISTS
 		const dzrPlaylists = [];
@@ -32,12 +36,12 @@ exports.syncPlaylists = async (playlists = []) => {
 				data.access_token = access_token;
 				dzrPlaylists.push(data);
 			} else {
-				console.error(`[${SCRIPT}]`, 'API Error Response', data.error);
+				logger.error('API Error Response', data.error);
 			}
 		}
 
 		if (dzrPlaylists.length < 2) {
-			console.error(`[${SCRIPT}]`, 'Not enought valid playlists.');
+			logger.error('Not enought valid playlists.');
 			return;
 		}
 
@@ -46,7 +50,9 @@ exports.syncPlaylists = async (playlists = []) => {
 		// GROUP ALL TRACKS
 			.reduce((acc, curr) => [...acc, ...curr.data], [])
 		// ORDER BY TIME ADD (IF SAME, ORDER BY ID)
-			.sort((a, b) => (a.time_add - b.time_add !== 0 ? a.time_add - b.time_add : a.id - b.id))
+			.sort((a, b) =>
+				a.time_add - b.time_add !== 0 ? a.time_add - b.time_add : a.id - b.id
+			)
 		// IF 2 TRACKS ARE THE SAME, KEEP FIRST ADDED
 			.reduce((acc, curr) => {
 				if (acc.map((track) => track.id).indexOf(curr.id) === -1) {
@@ -66,17 +72,16 @@ exports.syncPlaylists = async (playlists = []) => {
 			// GET TRACKS TO ADD
 			const playlistTracksId = playlistTracks.map((track) => track.id);
 			const tracksToAdd = playlistsTracks.filter(
-				(track) => !playlistTracksId.includes(track),
+				(track) => !playlistTracksId.includes(track)
 			);
 			if (tracksToAdd.length) {
 				await postPlaylistTracks(
 					access_token,
 					playlistId,
-					tracksToAdd.join(','),
+					tracksToAdd.join(',')
 				);
-				console.log(
-					`[${SCRIPT}]`,
-					`${tracksToAdd.length} track(s) added to playlist ${playlistId}.`,
+				logger.info(
+					`${tracksToAdd.length} track(s) added to playlist ${playlistId}.`
 				);
 			}
 
@@ -85,14 +90,14 @@ exports.syncPlaylists = async (playlists = []) => {
 				await postPlaylistTracksOrder(
 					access_token,
 					playlistId,
-					playlistsTracks.join(','),
+					playlistsTracks.join(',')
 				);
-				console.log(`[${SCRIPT}]`, `Tracks ordered in playlist ${playlistId}.`);
+				logger.info(`Tracks ordered in playlist ${playlistId}.`);
 			}
 		}
 
-		console.log(`[${SCRIPT}]`, 'Script ended!');
+		logger.info('Script ended');
 	} catch (e) {
-		console.error(`[${SCRIPT}]`, e);
+		logger.error(e);
 	}
 };

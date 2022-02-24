@@ -11,7 +11,7 @@ const {
 
 const mockEntityDeezerTracks = require('../mocks/api-deezer-tracks');
 
-const cronArguments = { access_token: 'BLUBLU', playlistId: 1234567890};
+const cronArguments = { access_token: 'BLUBLU', playlistId: 1234567890 };
 
 describe('Sync Playlists Cron', () => {
 	afterEach(() => {
@@ -27,7 +27,7 @@ describe('Sync Playlists Cron', () => {
 			await removeDuplicates();
 		} catch (err) {
 			expect(err.message).toEqual(
-				expect.stringContaining('Cannot destructure property'),
+				expect.stringContaining('Cannot destructure property')
 			);
 		}
 	});
@@ -60,23 +60,26 @@ describe('Sync Playlists Cron', () => {
 
 	test('Should delete track', async () => {
 		const playlistWithDuplicateTrack = JSON.parse(
-			JSON.stringify(mockEntityDeezerTracks),
+			JSON.stringify(mockEntityDeezerTracks)
 		);
 		playlistWithDuplicateTrack.data.push({
-			'id': 10,
-			'title_short': '9',
-			'artist': {
-				'id': 9
+			id: 10,
+			title_short: '9',
+			artist: {
+				id: 9,
 			},
-			'album': {
-				'id': 10
+			album: {
+				id: 10,
 			},
-			'duration': 9,
-			'readable': true,
-			'explicit_lyrics': false,
-			'time_add': 10
+			duration: 9,
+			readable: true,
+			explicit_lyrics: false,
+			time_add: 10,
 		});
-		const mockGetPlaylistIdTracks = nockGetPlaylistIdTracks(1, playlistWithDuplicateTrack);
+		const mockGetPlaylistIdTracks = nockGetPlaylistIdTracks(
+			1,
+			playlistWithDuplicateTrack
+		);
 		const mockDeletePlaylistIdTracks = nockDeletePlaylistIdTracks();
 
 		await removeDuplicates(cronArguments);
@@ -84,6 +87,4 @@ describe('Sync Playlists Cron', () => {
 		expect(mockGetPlaylistIdTracks.isDone()).toBeTruthy();
 		expect(mockDeletePlaylistIdTracks.isDone()).toBeTruthy();
 	});
-
-
 });

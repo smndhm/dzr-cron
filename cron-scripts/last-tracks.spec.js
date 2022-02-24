@@ -31,7 +31,7 @@ describe('Last Tracks Cron', () => {
 			await lastTracks();
 		} catch (err) {
 			expect(err.message).toEqual(
-				expect.stringContaining('Cannot destructure property'),
+				expect.stringContaining('Cannot destructure property')
 			);
 		}
 	});
@@ -61,7 +61,10 @@ describe('Last Tracks Cron', () => {
 			explicit_lyrics: false,
 			time_add: 10,
 		});
-		const mockGetPlaylistIdAddedTracks = nockGetPlaylistIdTracks(1, lastAddedTracks);
+		const mockGetPlaylistIdAddedTracks = nockGetPlaylistIdTracks(
+			1,
+			lastAddedTracks
+		);
 		const mockGetPlaylistIdTracks = nockGetPlaylistIdTracks();
 		const mockDeletePlaylistIdTracks = nockDeletePlaylistIdTracks();
 		const mockPostPlaylistIdTracks = nockPostPlaylistIdTracks();
@@ -83,7 +86,10 @@ describe('Last Tracks Cron', () => {
 			time_add: 10,
 		});
 		lastAddedTracks.data[0].explicit_lyrics = true;
-		const mockGetPlaylistIdAddedTracks = nockGetPlaylistIdTracks(1, lastAddedTracks);
+		const mockGetPlaylistIdAddedTracks = nockGetPlaylistIdTracks(
+			1,
+			lastAddedTracks
+		);
 		const mockGetPlaylistIdTracks = nockGetPlaylistIdTracks();
 		const mockDeletePlaylistIdTracks = nockDeletePlaylistIdTracks();
 		const mockPostPlaylistIdTracks = nockPostPlaylistIdTracks();
@@ -107,7 +113,10 @@ describe('Last Tracks Cron', () => {
 			explicit_lyrics: false,
 			time_add: 10,
 		});
-		const mockGetPlaylistIdAddedTracks = nockGetPlaylistIdTracks(1, lastAddedTracks);
+		const mockGetPlaylistIdAddedTracks = nockGetPlaylistIdTracks(
+			1,
+			lastAddedTracks
+		);
 		const mockGetPlaylistIdTracks = nockGetPlaylistIdTracks();
 		const mockDeletePlaylistIdTracks = nockDeletePlaylistIdTracks();
 		const mockPostPlaylistIdTracks = nockPostPlaylistIdTracks();

@@ -59,6 +59,7 @@ exports.postPlaylistTracksOrder = async (access_token, playlistId, order) => {
  * @param {array} playlists
  * @returns array
  */
-exports.playlistsFilter = (playlists) => playlists.filter(
-	({ access_token, playlistId }) => access_token && playlistId,
-);
+exports.playlistsFilter = (playlists) =>
+	playlists.filter(
+		({ access_token, playlistId }) => access_token && playlistId
+	);
