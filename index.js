@@ -1,3 +1,9 @@
+const logger = require('pino')({
+	mixin() {
+		return { script: 'dzr-cron' };
+	},
+	timestamp: () => `,"time":"${new Date(Date.now()).toISOString()}"`
+});
 // import cron tasks
 const { CronJob } = require('cron');
 const { lastTracks } = require('./cron-scripts/last-tracks');
@@ -21,11 +27,11 @@ for (const cron of crons) {
 			case 'sync-playlists':
 				syncPlaylists(cron.arguments);
 				break;
-			case 'remove-duplicates':	
+			case 'remove-duplicates':
 				removeDuplicates(cron.arguments);
 				break;
 			default:
-				console.error('Wrong or missing action');
+				logger.error('Wrong or missing action');
 				break;
 			}
 		},
@@ -33,7 +39,7 @@ for (const cron of crons) {
 		true,
 		'Europe/Paris',
 		this,
-		true,
+		true
 	);
 	dzrCronJob.start();
 }

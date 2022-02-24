@@ -1,6 +1,6 @@
 {
   "name": "dzr-cron",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "Deezer Cron Scripts",
   "scripts": {
     "start": "node ./index.js",
@@ -12,11 +12,13 @@
   "license": "ISC",
   "dependencies": {
     "axios": "^0.21.4",
-    "cron": "^1.8.2"
+    "cron": "^1.8.2",
+    "pino": "^7.8.0"
   },
   "devDependencies": {
     "eslint": "^8.9.0",
     "jest": "^26.6.1",
-    "nock": "^13.0.4"
+    "nock": "^13.0.4",
+    "prettier": "2.5.1"
   }
 }
