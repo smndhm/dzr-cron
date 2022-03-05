@@ -8,11 +8,11 @@ Scripts to update my playlists
 
 `git clone git@github.com:smndhm/dzr-cron.git && cd dzr-cron && npm ci`
 
-### Configure crons in `config/crons.conf.js` file
+### Configure crons in `crons.conf.js` file
 
 This file exports an array of crons, each cron has the following structure:
 
-```javascript
+```typescript
 {
   refreshInterval,
   action,
@@ -21,7 +21,7 @@ This file exports an array of crons, each cron has the following structure:
 ```
 
 - `refreshInterval` is the cron schedule expression, see: https://crontab.guru/.
-- `action` is the script to launch, can be "last-tracks" or "sync-playlists".
+- `action` is the script to launch, can be "last-tracks", "sync-playlists" or "remove-duplicates".
 - `arguments` is the list of arguments to pass to the script, depends on the cron.
 
 ## Scripts
@@ -32,9 +32,9 @@ Because it's better to have an offline playlist for the car. Because my favorite
 
 Because my kids wants to have their tracks during "apéro", I updated this cron.
 
-#### Structure for the `config/cron.conf.js` file
+#### Structure for the `cron.conf.js` file
 
-```javascript
+```typescript
 {
   refreshInterval: "0 * * * *",
   action: "last-tracks",
@@ -74,9 +74,9 @@ So I set the playlist public, mom added the playlist to its favorites, Lucas lis
 I didn't set the playlist collaborative, mom created a new playlist, added tracks, Lucas went back to dad... _"What! You don't have my last tracks?"_  
 Ok, new cron.
 
-#### Structure for the `config/cron.conf.js` file
+#### Structure for the `cron.conf.js` file
 
-```javascript
+```typescript
 {
   refreshInterval: "0 * * * *",
     action: "sync-playlists",
@@ -103,12 +103,12 @@ Must be an array of objects with the following properties:
 
 ### Remove duplicates
 
-I have a lot of titles in my favorite playlist and I realized that there could be the same track several times, this is often due to a track present in an album and in an EP, an album that has been reissued, etc. New cron.
+I have a lot of titles in my favorite playlist and I realized that there could be the same track several times, this is often due to a track present in an album and in an EP, an album that has been reissued, etc. New cron.  
 This will delete last duplicate added track.
 
-#### Structure for the `config/cron.conf.js` file
+#### Structure for the `cron.conf.js` file
 
-```javascript
+```typescript
 {
   refreshInterval: "0 0 * * *",
     action: "remove-duplicates",
@@ -135,7 +135,7 @@ You can now simply launch the script using npm: `npm run start` or node: `node .
 ## TODO
 
 - [ ] Check API quota limit with multiples crons
-- [ ] Better logs
+- [x] Better logs
 - [x] Add cron script to check and remove track if already exist
 - [x] Edit last-tracks cron to be able to set a specific playlist
 - [x] Tests
