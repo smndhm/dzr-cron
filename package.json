@@ -1,9 +1,9 @@
 {
   "name": "dzr-cron",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "Deezer Cron Scripts",
   "scripts": {
-    "start": "node ./index.ts",
+    "start": "npx ts-node ./index.ts",
     "test": "jest --coverage",
     "lint": "eslint \"**/*.ts\"",
     "lint:fix": "eslint \"**/*.ts\" --fix"
