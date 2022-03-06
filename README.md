@@ -130,7 +130,7 @@ Must be an objects with the following properties:
 
 ## Launch
 
-You can now simply launch the script using npm: `npm run start` or node: `node .\index.js`.
+You can launch the script using: `npm run start`.
 
 ## TODO
 
