@@ -16,14 +16,12 @@ export const nockDeletePlaylistIdTracks = () =>
   nock('https://api.deezer.com')
     .delete(/\/playlist\/\d+\/tracks/)
     .reply(200);
-// .reply(200, true);
 
 export const nockPostPlaylistIdTracks = (times = 1) =>
   nock('https://api.deezer.com')
     .post(/\/playlist\/\d+\/tracks/)
     .times(times)
     .reply(200);
-// .reply(200, true);
 
 export const cleanAll = () => nock.cleanAll();
 
