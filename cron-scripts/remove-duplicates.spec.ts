@@ -44,13 +44,13 @@ describe('Sync Playlists Cron', () => {
     expect(mockDeletePlaylistIdTracks.isDone()).toBeFalsy();
   });
 
-  test('Should delete track', async () => {
+  test.each(['9', '9 (blu)'])('Should delete duplicated track "%s"', async (title_short) => {
     const playlistWithDuplicateTrack = JSON.parse(
       JSON.stringify(mockEntityDeezerTracks)
     );
     playlistWithDuplicateTrack.data.push({
       id: 10,
-      title_short: '9',
+      title_short,
       artist: {
         id: 9,
       },
