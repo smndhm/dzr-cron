@@ -16,12 +16,13 @@ export default async function removeDuplicates({ playlistId, access_token }: Pla
     // GET PLAYLIST CONTENT
     const data = await getPlaylistTracks(access_token, playlistId);
     if (!data.error) {
-      // GROUP TRACKS BY ARTIST
+      // GROUP TRACKS BY TITLE
       const trackTitles = data.data.reduce((acc, curr) => {
-        if (!acc[curr.title_short]) {
-          acc[curr.title_short] = [];
+        const trackTitle = curr.title_short.replace(/ *\([^)]*\) */g, '');
+        if (!acc[trackTitle]) {
+          acc[trackTitle] = [];
         }
-        acc[curr.title_short].push({
+        acc[trackTitle].push({
           artist: {
             id: curr.artist.id, 
           }, 
