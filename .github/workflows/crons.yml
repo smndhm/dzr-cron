@@ -6,8 +6,9 @@ on:
   workflow_call:
     inputs:
       names:
-        description: 'Comma separated names of the crons to run, as set in the configuration'
-        required: true
+        description: 'Comma separated names of the crons to run, as set in the configuration. Empty runs them all.'
+        required: false
+        default: ''
         type: string
 
 jobs:

@@ -43,6 +43,8 @@ jobs:
 
 Adding a new rhythm means adding one such file. A name that no cron in the secret answers to fails the run, rather than quietly doing nothing.
 
+If every cron shares the same cadence, drop the `names` line and keep a single workflow: with no name given it runs them all, and there is no list to keep in sync with the secret.
+
 ## Scripts
 
 ### Last playlist tracks
