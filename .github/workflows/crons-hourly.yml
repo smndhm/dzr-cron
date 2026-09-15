@@ -17,5 +17,5 @@ jobs:
   run:
     uses: ./.github/workflows/crons.yml
     with:
-      names: kids-playlist
+      names: family-playlist,lucas,thibaut
     secrets: inherit
