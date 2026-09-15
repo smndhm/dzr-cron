@@ -1,40 +1,22 @@
 // Import cron tasks runner
 import runCron from './utils/run-cron';
 // Crons parameters
-import loadCrons from './utils/crons-conf';
-// Import schedule helpers
-import { isDue, DEFAULT_WINDOW_MINUTES } from './utils/schedule';
+import loadCrons, { selectCrons } from './utils/crons-conf';
 // Import logger
 import setLogger, { getErrorCount, resetErrorCount } from './utils/logger';
 
 const logger = setLogger('run-once');
 
-export const WINDOW_MINUTES_ENV = 'CRON_WINDOW_MINUTES';
-export const RUN_ALL_ENV = 'RUN_ALL_CRONS';
+// Comma separated list of cron names, set by the workflow that schedules them
+export const CRON_NAMES_ENV = 'CRON_NAMES';
 
-const getWindowMinutes = (env: NodeJS.ProcessEnv): number => {
-  const raw = env[WINDOW_MINUTES_ENV];
-  if (!raw) {
-    return DEFAULT_WINDOW_MINUTES;
-  }
-  const windowMinutes = Number(raw);
-  if (!Number.isFinite(windowMinutes) || windowMinutes <= 0) {
-    throw new Error(`${WINDOW_MINUTES_ENV} must be a positive number of minutes.`);
-  }
-  return windowMinutes;
-};
-
-// Runs every cron due since the previous run, then returns the number of logged
-// errors so the caller can exit accordingly.
+// Runs the crons named in CRON_NAMES once, then returns the number of logged
+// errors so the caller can exit accordingly. The schedule itself belongs to the
+// workflow: this only decides what runs, never when.
 export default async function runOnce (env: NodeJS.ProcessEnv = process.env): Promise<number> {
   resetErrorCount();
 
-  const crons = loadCrons(env);
-  const windowMinutes = getWindowMinutes(env);
-  const runAll = env[RUN_ALL_ENV] === 'true';
-  const dueCrons = runAll
-    ? crons
-    : crons.filter(({ refreshInterval }) => isDue(refreshInterval, { windowMinutes }));
+  const crons = selectCrons(loadCrons(env), env[CRON_NAMES_ENV] ?? '');
 
   if (crons.length === 0) {
     // Nothing to do rather than a failure: the job would otherwise turn red
@@ -42,21 +24,15 @@ export default async function runOnce (env: NodeJS.ProcessEnv = process.env): Pr
     logger.warn('No cron configured.');
   }
 
-  logger.info({
-    action: 'crons-selected',
-    configured: crons.length,
-    due: dueCrons.length,
-    windowMinutes,
-    runAll,
-  });
+  logger.info({ action: 'crons-selected', crons: crons.map(({ name }) => name) });
 
   // One at a time, to stay within the Deezer API quota
-  for (const cron of dueCrons) {
+  for (const cron of crons) {
     await runCron(cron);
   }
 
   const errors = getErrorCount();
-  logger.info({ action: 'run-ended', ran: dueCrons.length, errors });
+  logger.info({ action: 'run-ended', ran: crons.length, errors });
   return errors;
 }
 

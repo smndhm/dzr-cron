@@ -1,4 +1,4 @@
-import loadCrons, { parseCrons, CRONS_CONF_ENV } from './crons-conf';
+import loadCrons, { parseCrons, selectCrons, CRONS_CONF_ENV, Crons } from './crons-conf';
 
 jest.mock('../crons.conf');
 
@@ -6,6 +6,7 @@ const accessToken = 'frblublublublublublublublublublublublublublublublu';
 
 const validConf = [
   {
+    name: 'kids-playlist',
     refreshInterval: '0 * * * *',
     action: 'sync-playlists',
     arguments: [
@@ -14,12 +15,13 @@ const validConf = [
     ],
   },
   {
+    name: 'remove-duplicates',
     refreshInterval: '0 0 * * *',
     action: 'remove-duplicates',
     arguments: { access_token: accessToken, playlistId: 1234567890 },
   },
   {
-    refreshInterval: '0 0 * * *',
+    name: 'car-playlist',
     action: 'last-tracks',
     arguments: {
       access_token: accessToken,
@@ -60,11 +62,27 @@ describe('Crons configuration', () => {
       expect(() => parseCrons(null)).toThrow('must be a JSON array');
     });
 
-    test('Should reject a cron without a valid refreshInterval', () => {
-      expect(() => parseCrons([{ ...validConf[1], refreshInterval: undefined }]))
-        .toThrow('missing "refreshInterval"');
+    test('Should reject a cron without a name', () => {
+      expect(() => parseCrons([{ ...validConf[1], name: undefined }])).toThrow('missing "name"');
+      expect(() => parseCrons([{ ...validConf[1], name: '  ' }])).toThrow('missing "name"');
+    });
+
+    test('Should reject duplicated names', () => {
+      // The workflows address the crons by name, so they have to be unique
+      expect(() => parseCrons([validConf[1], { ...validConf[0], name: validConf[1].name }]))
+        .toThrow('duplicated name "remove-duplicates"');
+    });
+
+    test('Should accept a cron without refreshInterval', () => {
+      // Only `npm run start` needs one, the workflows carry their own schedule
+      expect(parseCrons([{ ...validConf[1], refreshInterval: undefined }])).toHaveLength(1);
+    });
+
+    test('Should reject an invalid refreshInterval when there is one', () => {
       expect(() => parseCrons([{ ...validConf[1], refreshInterval: 'every hour' }]))
         .toThrow('invalid cron expression');
+      expect(() => parseCrons([{ ...validConf[1], refreshInterval: 60 }]))
+        .toThrow('"refreshInterval" must be a string');
     });
 
     test('Should reject an unknown action', () => {
@@ -110,6 +128,29 @@ describe('Crons configuration', () => {
       } catch (e) {
         expect((e as Error).message).not.toContain(accessToken);
       }
+    });
+  });
+
+  describe('selectCrons', () => {
+    const crons = validConf as unknown as Crons;
+
+    test('Should keep the named crons, in the configuration order', () => {
+      expect(selectCrons(crons, 'remove-duplicates,kids-playlist').map(({ name }) => name))
+        .toEqual(['kids-playlist', 'remove-duplicates']);
+    });
+
+    test('Should trim the names', () => {
+      expect(selectCrons(crons, ' car-playlist , remove-duplicates ')).toHaveLength(2);
+    });
+
+    test('Should keep everything when no name is given', () => {
+      expect(selectCrons(crons, '')).toHaveLength(3);
+      expect(selectCrons(crons, '  ,  ')).toHaveLength(3);
+    });
+
+    test('Should throw on an unknown name', () => {
+      expect(() => selectCrons(crons, 'kids-playlist,nope,neither'))
+        .toThrow('Unknown cron name: nope, neither');
     });
   });
 });

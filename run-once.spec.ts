@@ -1,4 +1,4 @@
-import runOnce, { WINDOW_MINUTES_ENV, RUN_ALL_ENV } from './run-once';
+import runOnce, { CRON_NAMES_ENV } from './run-once';
 import { CRONS_CONF_ENV } from './utils/crons-conf';
 import setLogger from './utils/logger';
 import lastTracks from './cron-scripts/last-tracks';
@@ -15,67 +15,69 @@ const mockRemoveDuplicates = jest.mocked(removeDuplicates);
 
 const accessToken = 'frblublublublublublublublublublublublublublublublu';
 const playlist = { access_token: accessToken, playlistId: 1234567890 };
+const otherPlaylist = { access_token: accessToken, playlistId: 9876543210 };
 
 const conf = [
   {
-    refreshInterval: '0 * * * *',
+    name: 'kids-playlist',
     action: 'sync-playlists',
-    arguments: [playlist, { access_token: accessToken, playlistId: 9876543210 }],
+    arguments: [playlist, otherPlaylist],
   },
   {
-    refreshInterval: '0 0 * * *',
+    name: 'car-playlist',
+    action: 'last-tracks',
+    arguments: { ...playlist, playlists: [otherPlaylist] },
+  },
+  {
+    name: 'remove-duplicates',
     action: 'remove-duplicates',
     arguments: playlist,
   },
 ];
 
-const env = (overrides: NodeJS.ProcessEnv = {}) => ({
+const env = (names?: string) => ({
   [CRONS_CONF_ENV]: JSON.stringify(conf),
-  ...overrides,
+  ...(names === undefined ? {} : { [CRON_NAMES_ENV]: names }),
 });
 
 describe('Run once', () => {
-  beforeEach(() => {
-    jest.useFakeTimers('modern');
-    // 2022-03-15T10:17 in Europe/Paris
-    jest.setSystemTime(new Date('2022-03-15T09:17:00Z'));
-  });
-
-  afterEach(() => {
-    jest.useRealTimers();
-  });
-
-  test('Should only run the crons due since the last run', async () => {
-    const errors = await runOnce(env());
+  test('Should only run the named cron', async () => {
+    const errors = await runOnce(env('kids-playlist'));
 
     expect(mockSyncPlaylists).toBeCalledTimes(1);
     expect(mockSyncPlaylists).toBeCalledWith(conf[0].arguments);
-    expect(mockRemoveDuplicates).not.toBeCalled();
     expect(mockLastTracks).not.toBeCalled();
+    expect(mockRemoveDuplicates).not.toBeCalled();
     expect(errors).toBe(0);
   });
 
-  test('Should run the daily cron once the day changed', async () => {
-    // 2022-03-16T00:17 in Europe/Paris
-    jest.setSystemTime(new Date('2022-03-15T23:17:00Z'));
+  test('Should run every named cron', async () => {
+    await runOnce(env('car-playlist,remove-duplicates'));
 
+    expect(mockLastTracks).toBeCalledTimes(1);
+    expect(mockRemoveDuplicates).toBeCalledTimes(1);
+    expect(mockSyncPlaylists).not.toBeCalled();
+  });
+
+  test('Should ignore the spacing between the names', async () => {
+    await runOnce(env(' car-playlist ,  remove-duplicates '));
+
+    expect(mockLastTracks).toBeCalledTimes(1);
+    expect(mockRemoveDuplicates).toBeCalledTimes(1);
+  });
+
+  test('Should run every cron when no name is given', async () => {
     await runOnce(env());
 
     expect(mockSyncPlaylists).toBeCalledTimes(1);
+    expect(mockLastTracks).toBeCalledTimes(1);
     expect(mockRemoveDuplicates).toBeCalledTimes(1);
   });
 
-  test('Should run every cron when asked to', async () => {
-    await runOnce(env({ [RUN_ALL_ENV]: 'true' }));
-
-    expect(mockSyncPlaylists).toBeCalledTimes(1);
-    expect(mockRemoveDuplicates).toBeCalledTimes(1);
-  });
-
-  test('Should widen the window on demand', async () => {
-    await runOnce(env({ [WINDOW_MINUTES_ENV]: `${24 * 60}` }));
-
-    expect(mockRemoveDuplicates).toBeCalledTimes(1);
+  test('Should reject an unknown name rather than run nothing', async () => {
+    // A workflow and the configuration disagreeing must not look like a healthy run
+    await expect(runOnce(env('kid-playlist'))).rejects.toThrow('Unknown cron name: kid-playlist');
+    expect(mockSyncPlaylists).not.toBeCalled();
   });
 
   test('Should report the errors logged by the scripts', async () => {
@@ -83,7 +85,7 @@ describe('Run once', () => {
       setLogger('sync-playlists').error('API Error Response');
     });
 
-    const errors = await runOnce(env());
+    const errors = await runOnce(env('kids-playlist'));
 
     expect(errors).toBe(1);
   });
@@ -93,13 +95,6 @@ describe('Run once', () => {
 
     expect(errors).toBe(0);
     expect(mockSyncPlaylists).not.toBeCalled();
-  });
-
-  test('Should reject an invalid window', async () => {
-    await expect(runOnce(env({ [WINDOW_MINUTES_ENV]: 'soon' })))
-      .rejects.toThrow(WINDOW_MINUTES_ENV);
-    await expect(runOnce(env({ [WINDOW_MINUTES_ENV]: '0' })))
-      .rejects.toThrow(WINDOW_MINUTES_ENV);
   });
 
   test('Should reject an invalid configuration', async () => {

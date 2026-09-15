@@ -1,0 +1,21 @@
+name: Deezer crons (hourly)
+
+on:
+  # Every hour. GitHub evaluates this in UTC, and its scheduler is best effort:
+  # expect the run 10 to 30 minutes late. Minute 17 rather than 0, which is the
+  # most crowded slot.
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+
+# Never let two runs hit the Deezer API at the same time, whatever the schedule
+concurrency:
+  group: dzr-crons
+  cancel-in-progress: false
+
+jobs:
+  run:
+    uses: ./.github/workflows/crons.yml
+    with:
+      names: kids-playlist
+    secrets: inherit

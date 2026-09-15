@@ -6,6 +6,7 @@ const otherAccessToken = 'frblablablablablablablablablablablablablablablabla';
 
 const conf = [
   {
+    name: 'kids-playlist',
     refreshInterval: '0 * * * *',
     action: 'sync-playlists',
     arguments: [
@@ -14,6 +15,7 @@ const conf = [
     ],
   },
   {
+    name: 'car-playlist',
     refreshInterval: '0 0 * * *',
     action: 'last-tracks',
     arguments: {

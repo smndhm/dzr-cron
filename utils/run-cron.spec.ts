@@ -19,7 +19,7 @@ describe('Run cron', () => {
   test('Should run the last-tracks script', async () => {
     const cronArguments = { ...playlist, playlists: [otherPlaylist] };
     await runCron({
-      refreshInterval: '0 * * * *',
+      name: 'car-playlist',
       action: 'last-tracks',
       arguments: cronArguments,
     } as Crons[number]);
@@ -32,7 +32,7 @@ describe('Run cron', () => {
   test('Should run the sync-playlists script', async () => {
     const cronArguments = [playlist, otherPlaylist];
     await runCron({
-      refreshInterval: '0 * * * *',
+      name: 'kids-playlist',
       action: 'sync-playlists',
       arguments: cronArguments,
     } as Crons[number]);
@@ -44,7 +44,7 @@ describe('Run cron', () => {
 
   test('Should run the remove-duplicates script', async () => {
     await runCron({
-      refreshInterval: '0 0 * * *',
+      name: 'remove-duplicates',
       action: 'remove-duplicates',
       arguments: playlist,
     } as Crons[number]);
@@ -55,7 +55,7 @@ describe('Run cron', () => {
   });
 
   test('Should ignore an unknown action', async () => {
-    await runCron({ refreshInterval: '0 * * * *', action: 'nope' } as unknown as Crons[number]);
+    await runCron({ name: 'nope', action: 'nope' } as unknown as Crons[number]);
 
     expect(mockLastTracks).not.toBeCalled();
     expect(mockSyncPlaylists).not.toBeCalled();

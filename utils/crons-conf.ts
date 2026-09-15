@@ -63,15 +63,27 @@ export const parseCrons = (value: unknown): Crons => {
     throw new Error(`${CRONS_CONF_ENV} must be a JSON array of crons.`);
   }
 
+  const names = new Set<string>();
+
   value.forEach((cron, index) => {
     const label = `${CRONS_CONF_ENV} cron #${index}`;
     if (!isRecord(cron)) {
       throw new Error(`${label}: must be an object.`);
     }
-    if (typeof cron.refreshInterval !== 'string') {
-      throw new Error(`${label}: missing "refreshInterval".`);
+    if (typeof cron.name !== 'string' || cron.name.trim().length === 0) {
+      throw new Error(`${label}: missing "name".`);
     }
-    assertValidCronExpression(cron.refreshInterval, label);
+    if (names.has(cron.name)) {
+      throw new Error(`${label}: duplicated name "${cron.name}".`);
+    }
+    names.add(cron.name);
+    // Optional: only `npm run start` schedules by itself
+    if (cron.refreshInterval !== undefined) {
+      if (typeof cron.refreshInterval !== 'string') {
+        throw new Error(`${label}: "refreshInterval" must be a string.`);
+      }
+      assertValidCronExpression(cron.refreshInterval, label);
+    }
     if (typeof cron.action !== 'string' || !ACTIONS.includes(cron.action)) {
       throw new Error(`${label}: "action" must be one of ${ACTIONS.join(', ')}.`);
     }
@@ -79,6 +91,28 @@ export const parseCrons = (value: unknown): Crons => {
   });
 
   return value as Crons;
+};
+
+// Keeps the crons named in `names`, in the configuration order. An unknown name
+// throws rather than running nothing: it means a workflow and the configuration
+// disagree, and a silent no-op would look exactly like a healthy run.
+export const selectCrons = (crons: Crons, names: string): Crons => {
+  const wanted = names
+    .split(',')
+    .map((name) => name.trim())
+    .filter((name) => name.length > 0);
+
+  if (wanted.length === 0) {
+    return crons;
+  }
+
+  const configured = new Set(crons.map(({ name }) => name));
+  const unknown = wanted.filter((name) => !configured.has(name));
+  if (unknown.length > 0) {
+    throw new Error(`Unknown cron name: ${unknown.join(', ')}.`);
+  }
+
+  return crons.filter(({ name }) => wanted.includes(name));
 };
 
 // Reads the configuration from the environment when available, so the tokens

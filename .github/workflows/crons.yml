@@ -1,21 +1,14 @@
+# Steps shared by every schedule. The cadences live in the crons-*.yml files,
+# this one never runs on its own.
 name: Deezer crons
 
 on:
-  # Hourly. GitHub evaluates this in UTC and the scheduler is best effort, so
-  # each cron decides for itself whether it was due, see run-once.ts.
-  schedule:
-    - cron: '17 * * * *'
-  workflow_dispatch:
+  workflow_call:
     inputs:
-      run_all:
-        description: 'Run every configured cron, whatever its refreshInterval'
-        type: boolean
-        default: false
-
-# Never let two runs hit the Deezer API at the same time
-concurrency:
-  group: dzr-crons
-  cancel-in-progress: false
+      names:
+        description: 'Comma separated names of the crons to run, as set in the configuration'
+        required: true
+        type: string
 
 jobs:
   run-crons:
@@ -39,8 +32,8 @@ jobs:
         env:
           CRONS_CONF: ${{ secrets.CRONS_CONF }}
 
-      - name: Run due crons
+      - name: Run crons
         run: npm run cron:once
         env:
           CRONS_CONF: ${{ secrets.CRONS_CONF }}
-          RUN_ALL_CRONS: ${{ inputs.run_all }}
+          CRON_NAMES: ${{ inputs.names }}

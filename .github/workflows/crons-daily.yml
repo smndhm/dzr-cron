@@ -1,0 +1,20 @@
+name: Deezer crons (daily)
+
+on:
+  # Once a day, in the early morning: 03:17 UTC is 04:17 or 05:17 in Paris
+  # depending on daylight saving, which no listener will notice.
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+
+# Never let two runs hit the Deezer API at the same time, whatever the schedule
+concurrency:
+  group: dzr-crons
+  cancel-in-progress: false
+
+jobs:
+  run:
+    uses: ./.github/workflows/crons.yml
+    with:
+      names: car-playlist,remove-duplicates
+    secrets: inherit

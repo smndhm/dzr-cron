@@ -7,7 +7,7 @@ const otherPlaylistId = 9876543210;
 
 const crons: (LastTracksCron|SyncPlaylistCron|RemoveDuplicatesCron)[] = [
   {
-    // Car offline playlist
+    name: 'car-playlist',
     refreshInterval: '0 0 * * *', // Every day
     action: 'last-tracks',
     arguments: {
@@ -27,7 +27,7 @@ const crons: (LastTracksCron|SyncPlaylistCron|RemoveDuplicatesCron)[] = [
     },
   },
   {
-    // Kid playlist
+    name: 'kids-playlist',
     refreshInterval: '0 * * * *', // Every hour
     action: 'sync-playlists',
     arguments: [
@@ -42,7 +42,7 @@ const crons: (LastTracksCron|SyncPlaylistCron|RemoveDuplicatesCron)[] = [
     ],
   },
   {
-    // remove duplicates
+    name: 'remove-duplicates',
     refreshInterval: '0 0 * * *', // Every day
     action: 'remove-duplicates',
     arguments: {

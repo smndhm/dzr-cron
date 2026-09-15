@@ -4,7 +4,10 @@ export interface Playlist {
 }
 
 interface Cron {
-    refreshInterval: string,
+    // Identifies the cron in the workflows and in the logs
+    name: string,
+    // Only used by `npm run start`: on GitHub Actions the workflow schedule decides
+    refreshInterval?: string,
 }
 
 export interface LastTracksCron extends Cron {

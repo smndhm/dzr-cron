@@ -14,13 +14,15 @@ This file exports an array of crons, each cron has the following structure:
 
 ```typescript
 {
+  name,
   refreshInterval,
   action,
   arguments,
 }
 ```
 
-- `refreshInterval` is the cron schedule expression, see: https://crontab.guru/.
+- `name` identifies the cron. It must be unique: this is how the GitHub workflows pick the crons they run.
+- `refreshInterval` is the cron schedule expression, see: https://crontab.guru/. Optional, and only used by `npm run start`: on GitHub Actions the workflow carries the schedule.
 - `action` is the script to launch, can be "last-tracks", "sync-playlists" or "remove-duplicates".
 - `arguments` is the list of arguments to pass to the script, depends on the cron.
 
@@ -36,6 +38,7 @@ Because my kids wants to have their tracks during "apéro", I updated this cron.
 
 ```typescript
 {
+  name: "car-playlist",
   refreshInterval: "0 * * * *",
   action: "last-tracks",
   arguments: {
@@ -78,6 +81,7 @@ Ok, new cron.
 
 ```typescript
 {
+  name: "kids-playlist",
   refreshInterval: "0 * * * *",
     action: "sync-playlists",
     arguments: [
@@ -110,6 +114,7 @@ This will delete last duplicate added track.
 
 ```typescript
 {
+  name: "remove-duplicates",
   refreshInterval: "0 0 * * *",
     action: "remove-duplicates",
     arguments: {
@@ -132,11 +137,28 @@ Must be an objects with the following properties:
 
 ### Locally
 
-`npm run start` keeps a process alive and fires each cron on its own `refreshInterval`.
+`npm run start` keeps a process alive and fires each cron on its own `refreshInterval`. Crons without one are skipped, since they are scheduled by a workflow.
 
 ### On GitHub Actions
 
-The `Deezer crons` workflow wakes up every hour and runs `npm run cron:once`, which only runs the crons that were due since the previous wake up. `refreshInterval` stays the single source of truth, so the same configuration drives both ways of running the scripts.
+The schedules live in the workflows, one file per cadence: `.github/workflows/crons-hourly.yml` and `crons-daily.yml`. Each one says when it fires and which crons it runs, by name:
+
+```yaml
+on:
+  schedule:
+    - cron: '17 3 * * *'
+
+jobs:
+  run:
+    uses: ./.github/workflows/crons.yml
+    with:
+      names: car-playlist,remove-duplicates
+    secrets: inherit
+```
+
+`crons.yml` holds the steps shared by every cadence and never runs on its own. Adding a new rhythm means adding one such file, not a new script. A name that no cron in the configuration answers to fails the run, rather than quietly doing nothing.
+
+`refreshInterval` is ignored here: on Actions the workflow is the schedule. It only matters for `npm run start`.
 
 #### Configuration
 
@@ -145,7 +167,7 @@ The configuration holds Deezer access tokens, so it cannot live in the committed
 ```json
 [
   {
-    "refreshInterval": "0 * * * *",
+    "name": "kids-playlist",
     "action": "sync-playlists",
     "arguments": [
       { "access_token": "frblublublublublublublublublublublublublublublublu", "playlistId": 1234567890 },
@@ -153,7 +175,7 @@ The configuration holds Deezer access tokens, so it cannot live in the committed
     ]
   },
   {
-    "refreshInterval": "0 0 * * *",
+    "name": "remove-duplicates",
     "action": "remove-duplicates",
     "arguments": { "access_token": "frblublublublublublublublublublublublublublublublu", "playlistId": 1234567890 }
   }
@@ -164,12 +186,12 @@ When `CRONS_CONF` is unset, `crons.conf.ts` is used instead, so nothing changes 
 
 #### Good to know
 
-- GitHub evaluates the workflow schedule in UTC, but `refreshInterval` is still evaluated in `Europe/Paris`, daylight saving included.
-- GitHub's scheduler is best effort and can be delayed by 10 to 30 minutes. At the edge of the window a cron can therefore run twice, or be skipped. Every script is idempotent, so this is harmless. `CRON_WINDOW_MINUTES` widens the window if needed (60 minutes by default).
+- GitHub evaluates the workflow schedules in UTC and does not know about daylight saving, so the daily run drifts by an hour between summer and winter. It fires in the early morning, where it does not matter.
+- GitHub's scheduler is best effort and can be delayed by 10 to 30 minutes. Every script is idempotent, so a late or repeated run is harmless.
 - A scheduled workflow is automatically disabled after 60 days without activity in the repository.
-- Actions logs are public on a public repository, and a failed Deezer request carries the `access_token` in its axios error. Each token is therefore registered with `::add-mask::` before anything else runs, and the logger redacts every `access_token` it is given.
-- The job turns red as soon as a script logs an error, so a revoked token does not fail silently hour after hour.
-- `Run workflow` on the Actions tab triggers a run by hand. Tick `run_all` to run every cron whatever its `refreshInterval`.
+- Actions logs are public on a public repository, and a failed Deezer request carries the `access_token` in its axios error. Each token is therefore registered with `::add-mask::` before anything else runs, and the logger censors every `access_token` it is given, at any depth.
+- The job turns red as soon as a script logs an error, so a revoked token does not fail silently day after day.
+- `Run workflow` on the Actions tab runs a cadence by hand, outside of its schedule.
 
 ## TODO
 
