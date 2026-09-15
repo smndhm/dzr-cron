@@ -130,7 +130,46 @@ Must be an objects with the following properties:
 
 ## Launch
 
-You can launch the script using: `npm run start`.
+### Locally
+
+`npm run start` keeps a process alive and fires each cron on its own `refreshInterval`.
+
+### On GitHub Actions
+
+The `Deezer crons` workflow wakes up every hour and runs `npm run cron:once`, which only runs the crons that were due since the previous wake up. `refreshInterval` stays the single source of truth, so the same configuration drives both ways of running the scripts.
+
+#### Configuration
+
+The configuration holds Deezer access tokens, so it cannot live in the committed `crons.conf.ts`. Store it in a repository secret named `CRONS_CONF` (`Settings` > `Secrets and variables` > `Actions` > `New repository secret`), holding the same array as the configuration file, as JSON:
+
+```json
+[
+  {
+    "refreshInterval": "0 * * * *",
+    "action": "sync-playlists",
+    "arguments": [
+      { "access_token": "frblublublublublublublublublublublublublublublublu", "playlistId": 1234567890 },
+      { "access_token": "frblablablablablablablablablablablablablablablabla", "playlistId": 9876543210 }
+    ]
+  },
+  {
+    "refreshInterval": "0 0 * * *",
+    "action": "remove-duplicates",
+    "arguments": { "access_token": "frblublublublublublublublublublublublublublublublu", "playlistId": 1234567890 }
+  }
+]
+```
+
+When `CRONS_CONF` is unset, `crons.conf.ts` is used instead, so nothing changes locally. The configuration is validated before any call to Deezer: a missing or malformed field fails the run immediately, and the error never contains a token.
+
+#### Good to know
+
+- GitHub evaluates the workflow schedule in UTC, but `refreshInterval` is still evaluated in `Europe/Paris`, daylight saving included.
+- GitHub's scheduler is best effort and can be delayed by 10 to 30 minutes. At the edge of the window a cron can therefore run twice, or be skipped. Every script is idempotent, so this is harmless. `CRON_WINDOW_MINUTES` widens the window if needed (60 minutes by default).
+- A scheduled workflow is automatically disabled after 60 days without activity in the repository.
+- Actions logs are public on a public repository, and a failed Deezer request carries the `access_token` in its axios error. Each token is therefore registered with `::add-mask::` before anything else runs, and the logger redacts every `access_token` it is given.
+- The job turns red as soon as a script logs an error, so a revoked token does not fail silently hour after hour.
+- `Run workflow` on the Actions tab triggers a run by hand. Tick `run_all` to run every cron whatever its `refreshInterval`.
 
 ## TODO
 

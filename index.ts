@@ -1,31 +1,24 @@
-// import cron tasks
+// import cron scheduler
 import { CronJob } from 'cron';
-import lastTracks from './cron-scripts/last-tracks';
-import syncPlaylists from './cron-scripts/sync-playlists';
-import removeDuplicates from './cron-scripts/remove-duplicates';
+// import cron tasks runner
+import runCron from './utils/run-cron';
 // Crons parameters
-import crons from './crons.conf';
+import loadCrons from './utils/crons-conf';
+// Timezone shared with the one shot runner
+import { TIMEZONE } from './utils/schedule';
+
+const crons = loadCrons();
 
 // Start all cron tasks
 for (const cron of crons) {
   const dzrCronJob = new CronJob(
     cron.refreshInterval,
     () => {
-      switch (cron.action) {
-      case 'last-tracks':
-        lastTracks(cron.arguments);
-        break;
-      case 'sync-playlists':
-        syncPlaylists(cron.arguments);
-        break;
-      case 'remove-duplicates':
-        removeDuplicates(cron.arguments);
-        break;
-      }
+      runCron(cron);
     },
     null,
     true,
-    'Europe/Paris',
+    TIMEZONE,
     this,
     true
   );

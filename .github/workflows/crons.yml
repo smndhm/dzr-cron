@@ -1,0 +1,46 @@
+name: Deezer crons
+
+on:
+  # Hourly. GitHub evaluates this in UTC and the scheduler is best effort, so
+  # each cron decides for itself whether it was due, see run-once.ts.
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+    inputs:
+      run_all:
+        description: 'Run every configured cron, whatever its refreshInterval'
+        type: boolean
+        default: false
+
+# Never let two runs hit the Deezer API at the same time
+concurrency:
+  group: dzr-crons
+  cancel-in-progress: false
+
+jobs:
+  run-crons:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install modules
+        run: npm ci
+
+      # GitHub only masks the secret as a whole: the tokens nested in it have to
+      # be registered one by one, before anything can log them.
+      - name: Mask Deezer access tokens
+        run: npm run --silent cron:mask
+        env:
+          CRONS_CONF: ${{ secrets.CRONS_CONF }}
+
+      - name: Run due crons
+        run: npm run cron:once
+        env:
+          CRONS_CONF: ${{ secrets.CRONS_CONF }}
+          RUN_ALL_CRONS: ${{ inputs.run_all }}
