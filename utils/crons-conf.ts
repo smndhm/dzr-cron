@@ -1,7 +1,3 @@
-// Default configuration file, used when no configuration is set in the environment
-import fileCrons from '../crons.conf';
-// Import cron expression validation
-import { assertValidCronExpression } from './schedule';
 // Import types
 import {
   LastTracksCron,
@@ -77,13 +73,6 @@ export const parseCrons = (value: unknown): Crons => {
       throw new Error(`${label}: duplicated name "${cron.name}".`);
     }
     names.add(cron.name);
-    // Optional: only `npm run start` schedules by itself
-    if (cron.refreshInterval !== undefined) {
-      if (typeof cron.refreshInterval !== 'string') {
-        throw new Error(`${label}: "refreshInterval" must be a string.`);
-      }
-      assertValidCronExpression(cron.refreshInterval, label);
-    }
     if (typeof cron.action !== 'string' || !ACTIONS.includes(cron.action)) {
       throw new Error(`${label}: "action" must be one of ${ACTIONS.join(', ')}.`);
     }
@@ -115,12 +104,12 @@ export const selectCrons = (crons: Crons, names: string): Crons => {
   return crons.filter(({ name }) => wanted.includes(name));
 };
 
-// Reads the configuration from the environment when available, so the tokens
-// can live in a GitHub secret instead of a committed file.
+// Reads the configuration from the environment: the tokens it holds cannot live
+// in a committed file, so it comes from a GitHub secret.
 export default function loadCrons (env: NodeJS.ProcessEnv = process.env): Crons {
   const raw = env[CRONS_CONF_ENV];
   if (!raw || raw.trim().length === 0) {
-    return fileCrons;
+    throw new Error(`${CRONS_CONF_ENV} is not set.`);
   }
 
   let parsed: unknown;

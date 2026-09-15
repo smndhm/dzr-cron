@@ -1,13 +1,10 @@
 import loadCrons, { parseCrons, selectCrons, CRONS_CONF_ENV, Crons } from './crons-conf';
 
-jest.mock('../crons.conf');
-
 const accessToken = 'frblublublublublublublublublublublublublublublublu';
 
 const validConf = [
   {
     name: 'kids-playlist',
-    refreshInterval: '0 * * * *',
     action: 'sync-playlists',
     arguments: [
       { access_token: accessToken, playlistId: 1234567890 },
@@ -16,7 +13,6 @@ const validConf = [
   },
   {
     name: 'remove-duplicates',
-    refreshInterval: '0 0 * * *',
     action: 'remove-duplicates',
     arguments: { access_token: accessToken, playlistId: 1234567890 },
   },
@@ -35,9 +31,9 @@ const validConf = [
 
 describe('Crons configuration', () => {
   describe('loadCrons', () => {
-    test('Should fall back on the configuration file', () => {
-      expect(loadCrons({})).toHaveLength(3);
-      expect(loadCrons({ [CRONS_CONF_ENV]: '   ' })).toHaveLength(3);
+    test('Should throw when the configuration is not set', () => {
+      expect(() => loadCrons({})).toThrow('CRONS_CONF is not set');
+      expect(() => loadCrons({ [CRONS_CONF_ENV]: '   ' })).toThrow('CRONS_CONF is not set');
     });
 
     test('Should read the configuration from the environment', () => {
@@ -71,18 +67,6 @@ describe('Crons configuration', () => {
       // The workflows address the crons by name, so they have to be unique
       expect(() => parseCrons([validConf[1], { ...validConf[0], name: validConf[1].name }]))
         .toThrow('duplicated name "remove-duplicates"');
-    });
-
-    test('Should accept a cron without refreshInterval', () => {
-      // Only `npm run start` needs one, the workflows carry their own schedule
-      expect(parseCrons([{ ...validConf[1], refreshInterval: undefined }])).toHaveLength(1);
-    });
-
-    test('Should reject an invalid refreshInterval when there is one', () => {
-      expect(() => parseCrons([{ ...validConf[1], refreshInterval: 'every hour' }]))
-        .toThrow('invalid cron expression');
-      expect(() => parseCrons([{ ...validConf[1], refreshInterval: 60 }]))
-        .toThrow('"refreshInterval" must be a string');
     });
 
     test('Should reject an unknown action', () => {

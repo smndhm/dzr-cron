@@ -19,8 +19,7 @@ export default async function runOnce (env: NodeJS.ProcessEnv = process.env): Pr
   const crons = selectCrons(loadCrons(env), env[CRON_NAMES_ENV] ?? '');
 
   if (crons.length === 0) {
-    // Nothing to do rather than a failure: the job would otherwise turn red
-    // every hour on a fork, or before the CRONS_CONF secret is set.
+    // An empty configuration is deliberate, unlike a missing one, which throws
     logger.warn('No cron configured.');
   }
 
