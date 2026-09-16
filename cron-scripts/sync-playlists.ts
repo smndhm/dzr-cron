@@ -8,7 +8,10 @@ import {
 import setLogger from '../utils/logger';
 const logger = setLogger('cron-sync-playlists');
 // Import types
-import { Playlist, AtLeastTwo } from '../types';
+import { Playlist, AtLeastTwo, DeezerTrack } from '../types';
+
+// A playlist as fetched, tagged with the account it was read from
+type DzrPlaylist = { id: number, access_token: string, data: DeezerTrack[] };
 
 // Script
 export default async function syncPlaylists(playlists: AtLeastTwo<Playlist>) {
@@ -16,7 +19,7 @@ export default async function syncPlaylists(playlists: AtLeastTwo<Playlist>) {
     logger.info('Script started');
 
     // GET PLAYLISTS CONTENT
-    const dzrPlaylists = [];
+    const dzrPlaylists: DzrPlaylist[] = [];
     for await (const { access_token, playlistId } of playlists) {
       const data = await getPlaylistTracks(access_token, playlistId);
       if (!data.error) {
@@ -35,22 +38,22 @@ export default async function syncPlaylists(playlists: AtLeastTwo<Playlist>) {
     }
 
     // GET TRACK LIST
-    const playlistsTracks = dzrPlaylists
+    const playlistsTracks: number[] = [];
+    const seenTracksId = new Set<number>();
+    dzrPlaylists
     // GROUP ALL TRACKS
-      .reduce((acc, curr) => [...acc, ...curr.data], [])
+      .flatMap((playlist) => playlist.data)
     // ORDER BY TIME ADD (IF SAME, ORDER BY ID)
-      .sort((a: { time_add: number; id: number; }, b: { time_add: number; id: number; }) =>
-        a.time_add - b.time_add !== 0 ? a.time_add - b.time_add : a.id - b.id
+      .sort((a, b) =>
+        a.time_add !== b.time_add ? a.time_add - b.time_add : a.id - b.id
       )
-    // IF 2 TRACKS ARE THE SAME, KEEP FIRST ADDED
-      .reduce((acc: { id: number; }[], curr: { id: number; }) => {
-        if (acc.map((track: { id: number; }) => track.id).indexOf(curr.id) === -1) {
-          acc.push(curr);
+    // IF 2 TRACKS ARE THE SAME, KEEP FIRST ADDED, AND KEEP IDS
+      .forEach((track) => {
+        if (!seenTracksId.has(track.id)) {
+          seenTracksId.add(track.id);
+          playlistsTracks.push(track.id);
         }
-        return acc;
-      }, [])
-    // KEEP IDS
-      .map((track: { id: number; }) => track.id);
+      });
 
     // UPDATE PLAYLISTS
     for (const {
@@ -60,9 +63,10 @@ export default async function syncPlaylists(playlists: AtLeastTwo<Playlist>) {
     } of dzrPlaylists) {
 
       // GET TRACKS TO ADD
-      const playlistTracksId = playlistTracks.map((track: { id: number; }) => track.id);
+      const playlistTracksId = playlistTracks.map((track) => track.id);
+      const existingTracksId = new Set(playlistTracksId);
       const tracksToAdd = playlistsTracks.filter(
-        (track) => !playlistTracksId.includes(track)
+        (track) => !existingTracksId.has(track)
       );
       if (tracksToAdd.length) {
         await postPlaylistTracks(access_token, playlistId, tracksToAdd);

@@ -44,7 +44,7 @@ describe('Sync Playlists Cron', () => {
     });
     const mockGetPlaylistIdTracks_1 = nockGetPlaylistIdTracks();
     const mockGetPlaylistIdTracks_2 = nockGetPlaylistIdTracks(
-      null,
+      1,
       playlistWithNewTrack
     );
     const mockPostPlaylistIdTracks = nockPostPlaylistIdTracks(2);

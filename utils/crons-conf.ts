@@ -126,8 +126,10 @@ export default function loadCrons (env: NodeJS.ProcessEnv = process.env, file: s
   let parsed: unknown;
   try {
     parsed = JSON.parse(readFileSync(resolve(file), 'utf8'));
-  } catch (e) {
-    throw new Error(`${file} is missing or is not valid JSON.`);
+  } catch (cause) {
+    // The file carries no token, so the parse error is safe to keep: it says
+    // which line is malformed, which this message cannot.
+    throw new Error(`${file} is missing or is not valid JSON.`, { cause });
   }
 
   return resolveTokens(parseCrons(parsed), env);

@@ -7,7 +7,14 @@ import {
 import setLogger from '../utils/logger';
 const logger = setLogger('remove-duplicates');
 // Import types
-import { Playlist } from '../types';
+import { Playlist, DeezerTrack } from '../types';
+
+// Two tracks are the same song when the artist and the duration match but the
+// album differs: a reissue, or the same track on an album and on an EP.
+const isSameSong = (track: DeezerTrack, other: DeezerTrack): boolean =>
+  track.artist.id === other.artist.id &&
+  track.album.id !== other.album.id &&
+  track.duration === other.duration;
 
 export default async function removeDuplicates({ playlistId, access_token }: Playlist) {
   try {
@@ -16,60 +23,41 @@ export default async function removeDuplicates({ playlistId, access_token }: Pla
     // GET PLAYLIST CONTENT
     const data = await getPlaylistTracks(access_token, playlistId);
     if (!data.error) {
-      // GROUP TRACKS BY TITLE
-      const trackTitles = data.data.reduce((acc, curr) => {
-        const trackTitle = curr.title_short.replace(/ *\([^)]*\) */g, '');
-        if (!acc[trackTitle]) {
-          acc[trackTitle] = [];
+      // GROUP TRACKS BY TITLE, PARENTHESES ASIDE
+      const tracksByTitle = new Map<string, DeezerTrack[]>();
+      for (const track of data.data as DeezerTrack[]) {
+        const title = track.title_short.replace(/ *\([^)]*\) */g, '');
+        const sameTitle = tracksByTitle.get(title);
+        if (sameTitle) {
+          sameTitle.push(track);
+        } else {
+          tracksByTitle.set(title, [track]);
         }
-        acc[trackTitle].push({
-          artist: {
-            id: curr.artist.id, 
-          }, 
-          album: {
-            id: curr.album.id,
-          },
-          duration: curr.duration,
-          time_add: curr.time_add,
-          id: curr.id
-        });
-        return acc;
-      }, {});
+      }
 
-      // KEEP ARTISTS WITH MORE THAN 1 TRACK
-      const sameTitleTracks = Object.keys(trackTitles)
-        .filter((id) => trackTitles[id].length > 1)
-        .reduce((acc, curr) => {
-          acc[curr] = trackTitles[curr];
-          return acc;
-        }, {});
-
-      // CHECK IF TRACKS ARE THE SAME
-      const tracksToRemove = [];
-      Object.values(sameTitleTracks).forEach((tracks: { artist: { id: number; }; album: { id: number; }; duration: number; time_add: number; id: number; }[]) => {
-        tracks.forEach((track: { artist: { id: number; }; album: { id: number; }; duration: number; time_add: number; id: number; }, index: number) => {
-          const otherTracks = [...tracks];
-          otherTracks.splice(index, 1);
-          otherTracks.forEach((otherTrack) => {
-            if (
-              track.artist.id === otherTrack.artist.id &&
-              track.album.id !== otherTrack.album.id &&
-              track.duration === otherTrack.duration &&
-              track.time_add > otherTrack.time_add
-            ) {
-              tracksToRemove.push(track.id);
+      // OF TWO COPIES OF A SONG, THE LAST ADDED ONE GOES
+      const tracksToRemove = new Set<number>();
+      for (const tracks of tracksByTitle.values()) {
+        if (tracks.length < 2) {
+          continue;
+        }
+        tracks.forEach((track, index) => {
+          tracks.forEach((other, otherIndex) => {
+            if (index !== otherIndex && isSameSong(track, other) && track.time_add > other.time_add) {
+              tracksToRemove.add(track.id);
             }
           });
         });
-      });
+      }
 
       // REMOVE TRACKS FROM PLAYLIST
-      if (tracksToRemove.length) {
-        await deletePlaylistTracks(access_token, playlistId, tracksToRemove);
+      if (tracksToRemove.size) {
+        const removed = Array.from(tracksToRemove);
+        await deletePlaylistTracks(access_token, playlistId, removed);
         logger.info({
           action: 'tracks-removed',
           playlist: playlistId,
-          tracks: tracksToRemove,
+          tracks: removed,
         });
       }
 
