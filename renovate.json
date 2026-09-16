@@ -3,10 +3,6 @@
   "extends": [
     "config:recommended"
   ],
-  "timezone": "Europe/Paris",
-  "schedule": [
-    "before 6am on monday"
-  ],
   "minimumReleaseAge": "24 hours",
   "rebaseWhen": "behind-base-branch",
   "semanticCommits": "enabled",
