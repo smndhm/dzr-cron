@@ -1,17 +1,15 @@
-import pino from 'pino';
-
-// Key holding a Deezer token anywhere in the logged payload
+// Key holding a Deezer token anywhere in a logged payload
 const TOKEN_KEY = 'access_token';
 const CENSOR = '[redacted]';
 
 // Censoring by key alone is one shape away from missing a token: a client that
-// keeps the request url would carry it outside any access_token key. Censor by
-// value too, for every token the run was given.
+// keeps the request url would carry it outside any access_token key. Every
+// rendered line is censored by value too, for every token the run was given.
 const secrets = new Set<string>();
 
 // A Deezer token is around fifty characters. Anything short is a mistyped
-// secret, and censoring it by value would eat every log line that happens to
-// contain those few characters; the access_token key stays censored anyway.
+// secret, and censoring it by value would eat those few characters out of every
+// line; the access_token key stays censored anyway.
 const MIN_SECRET_LENGTH = 8;
 
 export const registerSecrets = (tokens: string[]): void => {
@@ -26,8 +24,8 @@ export const forgetSecrets = (): void => {
   secrets.clear();
 };
 
-const censorSecrets = (value: string): string => {
-  let censored = value;
+const censorSecrets = (line: string): string => {
+  let censored = line;
   secrets.forEach((secret) => {
     if (censored.includes(secret)) {
       censored = censored.split(secret).join(CENSOR);
@@ -36,19 +34,12 @@ const censorSecrets = (value: string): string => {
   return censored;
 };
 
-// The tokens show up at several depths: one per playlist in the cron
-// configuration, and one per failed request, where axios keeps it in
-// `err.config.params` because it travels as a query parameter. pino's `redact`
-// only takes fixed paths, so the whole payload is walked instead: the logs are
-// public on a public repository, and a missed path is a leaked token.
+// Censors the access_token key at any depth, and guards against the circular
+// references an error can hold.
 const redactTokens = (value: unknown, seen: WeakSet<object> = new WeakSet()): unknown => {
-  if (typeof value === 'string') {
-    return censorSecrets(value);
-  }
   if (value === null || typeof value !== 'object') {
     return value;
   }
-  // Axios errors hold circular references
   if (seen.has(value)) {
     return '[circular]';
   }
@@ -59,16 +50,9 @@ const redactTokens = (value: unknown, seen: WeakSet<object> = new WeakSet()): un
   }
 
   const redacted: Record<string, unknown> = {};
-  // `message` and `stack` are not enumerable, so they are copied explicitly
-  if (value instanceof Error) {
-    redacted.type = value.constructor.name;
-    redacted.message = value.message;
-    redacted.stack = value.stack;
-  }
   Object.entries(value).forEach(([key, entry]) => {
     redacted[key] = key === TOKEN_KEY ? CENSOR : redactTokens(entry, seen);
   });
-
   return redacted;
 };
 
@@ -82,24 +66,43 @@ export const resetErrorCount = (): void => {
   errorCount = 0;
 };
 
-export default function setLogger (script: string, destination?: pino.DestinationStream) {
-  return pino({
-    mixin() {
-      return { script };
+export type LogOutput = (line: string) => void;
+
+const toStdout: LogOutput = (line) => {
+  process.stdout.write(`${line}\n`);
+};
+
+// An error is worth its stack, which already opens with its class and message,
+// and its cause, which is the half that says what actually went wrong.
+const render = (payload: unknown): string => {
+  if (typeof payload === 'string') {
+    return payload;
+  }
+  if (payload instanceof Error) {
+    const stack = payload.stack ?? `${payload.name}: ${payload.message}`;
+    const { cause } = payload;
+    return cause === undefined ? stack : `${stack}\nCaused by: ${render(cause)}`;
+  }
+  return JSON.stringify(redactTokens(payload));
+};
+
+export default function setLogger (script: string, output: LogOutput = toStdout) {
+  const log = (level: string, payload: unknown, extra?: unknown): void => {
+    const parts = [render(payload)];
+    if (extra !== undefined) {
+      parts.push(render(extra));
+    }
+    // Censoring the rendered line, so nothing escapes through a shape we did
+    // not anticipate
+    output(censorSecrets(`${new Date().toISOString()} ${level} [${script}] ${parts.join(' ')}`));
+  };
+
+  return {
+    info: (payload: unknown, extra?: unknown) => log('INFO', payload, extra),
+    warn: (payload: unknown, extra?: unknown) => log('WARN', payload, extra),
+    error: (payload: unknown, extra?: unknown) => {
+      errorCount++;
+      log('ERROR', payload, extra);
     },
-    formatters: {
-      log: (payload) => redactTokens(payload) as Record<string, unknown>,
-    },
-    hooks: {
-      logMethod(args, method, level) {
-        if (level >= 50) {
-          errorCount++;
-        }
-        // pino types the arguments as a union of its overloads, which `apply`
-        // cannot narrow on its own
-        return method.apply(this, args as Parameters<pino.LogFn>);
-      },
-    },
-    timestamp: () => `,"time":"${new Date(Date.now()).toISOString()}"`
-  }, destination as pino.DestinationStream);
+  };
 }
