@@ -153,6 +153,15 @@ The workflows run on their own once the token secrets are set. `Run workflow` on
 
 The other scripts are `pnpm test`, `pnpm lint` and `pnpm typecheck`, which the `Tests` workflow runs on every push and pull request. Nothing is type checked at run time: the crons are executed by `tsx`, so a type error fails the build rather than a nightly run.
 
+Each run also writes a summary on its page in the Actions tab, above the log:
+
+```
+## family-playlist
+
+- 3 tracks added to playlist 9499677562
+- 1 track removed from playlist 9499677562
+```
+
 ### Good to know
 
 - GitHub evaluates the workflow schedules in UTC and does not know about daylight saving, so the daily run drifts by an hour between summer and winter. It fires in the early morning, where it does not matter.

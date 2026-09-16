@@ -6,12 +6,15 @@ import loadCron from './utils/cron-conf';
 import { collectTokens } from './utils/mask-tokens';
 // Import logger
 import setLogger, { getErrorCount, resetErrorCount, registerSecrets, LogOutput } from './utils/logger';
+// Import run summary
+import { forgetChanges, writeSummary } from './utils/summary';
 
 // Runs the cron the workflow defined, then returns the number of logged errors
 // so the caller can exit accordingly.
 export default async function runOnce (env: NodeJS.ProcessEnv = process.env, output?: LogOutput): Promise<number> {
   const logger = setLogger('run-once', output);
   resetErrorCount();
+  forgetChanges();
 
   const cron = loadCron(env);
   // Before anything can log, so a failed request cannot print a token
@@ -26,6 +29,8 @@ export default async function runOnce (env: NodeJS.ProcessEnv = process.env, out
 
   const errors = getErrorCount();
   logger.info({ action: 'cron-ended', cron: cron.name, errors });
+  // Reads better than the log, at the top of the run's page
+  writeSummary(cron.name, errors, env);
   return errors;
 }
 

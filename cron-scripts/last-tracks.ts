@@ -6,6 +6,8 @@ import {
 } from '../utils/dzr';
 // Import logger
 import setLogger from '../utils/logger';
+// Import run summary
+import { reportChange } from '../utils/summary';
 const logger = setLogger('last-tracks');
 // Import types
 import { AtLeastOne, Playlist, DeezerTrack } from '../types';
@@ -79,7 +81,7 @@ export default async function lastTracks({
     );
     if (tracksToRemove.length) {
       await deletePlaylistTracks(access_token, playlistId, tracksToRemove);
-      logger.info({
+      reportChange(logger, {
         action: 'tracks-removed',
         playlist: playlistId,
         tracks: tracksToRemove,
@@ -92,7 +94,7 @@ export default async function lastTracks({
     );
     if (tracksToAdd.length) {
       await postPlaylistTracks(access_token, playlistId, tracksToAdd);
-      logger.info({
+      reportChange(logger, {
         action: 'tracks-added',
         playlist: playlistId,
         tracks: tracksToAdd,
