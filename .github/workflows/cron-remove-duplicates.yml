@@ -16,5 +16,11 @@ jobs:
   run:
     uses: ./.github/workflows/crons.yml
     with:
-      names: remove-duplicates
+      cron: remove-duplicates
+      action: remove-duplicates
+      arguments: |
+        {
+          "access_token": "$MY_ACCESS_TOKEN",
+          "playlistId": 183341731
+        }
     secrets: inherit

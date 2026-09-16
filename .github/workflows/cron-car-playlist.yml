@@ -1,7 +1,7 @@
 name: Cron car-playlist
 
 on:
-  # Every hour, see family-playlist for the staggering.
+  # Every hour, see cron-family-playlist.yml for the staggering.
   schedule:
     - cron: '17 * * * *'
   workflow_dispatch:
@@ -15,5 +15,17 @@ jobs:
   run:
     uses: ./.github/workflows/crons.yml
     with:
-      names: car-playlist
+      cron: car-playlist
+      action: last-tracks
+      arguments: |
+        {
+          "access_token": "$MY_ACCESS_TOKEN",
+          "playlistId": 6582056564,
+          "playlists": [
+            {
+              "access_token": "$MY_ACCESS_TOKEN",
+              "playlistId": 183341731
+            }
+          ]
+        }
     secrets: inherit

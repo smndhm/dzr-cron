@@ -2,7 +2,7 @@ name: Cron family-playlist
 
 on:
   # Every hour. Minutes are staggered across the crons so they do not queue
-  # behind one another, and so a busy slot on GitHub's side does not take them all.
+  # behind one another, and so a slot dropped by GitHub costs one cron, not all.
   schedule:
     - cron: '7 * * * *'
   workflow_dispatch:
@@ -16,5 +16,30 @@ jobs:
   run:
     uses: ./.github/workflows/crons.yml
     with:
-      names: family-playlist
+      cron: family-playlist
+      action: last-tracks
+      arguments: |
+        {
+          "access_token": "$MY_ACCESS_TOKEN",
+          "playlistId": 9499677562,
+          "playlists": [
+            {
+              "access_token": "$MY_ACCESS_TOKEN",
+              "playlistId": 1008179901
+            },
+            {
+              "access_token": "$LUCAS_ACCESS_TOKEN",
+              "playlistId": 12153531831
+            },
+            {
+              "access_token": "$LYNDS_ACCESS_TOKEN",
+              "playlistId": 1696045971
+            },
+            {
+              "access_token": "$MY_ACCESS_TOKEN",
+              "playlistId": 183341731
+            }
+          ],
+          "nbTracks": 10
+        }
     secrets: inherit

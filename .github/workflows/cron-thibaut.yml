@@ -1,7 +1,7 @@
 name: Cron thibaut
 
 on:
-  # Every hour, see family-playlist for the staggering.
+  # Every hour, see cron-family-playlist.yml for the staggering.
   schedule:
     - cron: '37 * * * *'
   workflow_dispatch:
@@ -15,5 +15,17 @@ jobs:
   run:
     uses: ./.github/workflows/crons.yml
     with:
-      names: thibaut
+      cron: thibaut
+      action: sync-playlists
+      arguments: |
+        [
+          {
+            "access_token": "$MY_ACCESS_TOKEN",
+            "playlistId": 1008179901
+          },
+          {
+            "access_token": "$LYNDS_ACCESS_TOKEN",
+            "playlistId": 3143324282
+          }
+        ]
     secrets: inherit

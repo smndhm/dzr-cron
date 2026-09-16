@@ -31,14 +31,14 @@ describe('Logger', () => {
 
   test('Should keep the error message, stack and cause', () => {
     const { lines, output } = collect();
-    const error = new Error('crons.conf.json is not valid JSON.', {
+    const error = new Error('CRON_ARGUMENTS is not valid JSON.', {
       cause: new SyntaxError('Unexpected token } at position 42'),
     });
 
     setLogger('run-once', output).error(error);
 
-    expect(lines[0]).toContain('crons.conf.json is not valid JSON.');
-    expect(lines[0]).toContain('Error: crons.conf.json is not valid JSON.');
+    expect(lines[0]).toContain('CRON_ARGUMENTS is not valid JSON.');
+    expect(lines[0]).toContain('Error: CRON_ARGUMENTS is not valid JSON.');
     expect(lines[0]).toContain('Caused by: SyntaxError: Unexpected token } at position 42');
   });
 

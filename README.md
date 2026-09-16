@@ -4,42 +4,18 @@ Scripts to update my playlists
 
 ## Setup
 
-The scripts run on GitHub Actions, scheduled by the workflows in `.github/workflows`. There is nothing to install. The setup is in two parts: the crons themselves, versioned in `crons.conf.json`, and the Deezer access tokens, which are secrets.
+The scripts run on GitHub Actions. There is nothing to install. The setup is in two parts: one workflow per cron in `.github/workflows`, which says when it runs and what it does, and the Deezer access tokens, which are secrets.
 
-### Configure the crons in `crons.conf.json`
+### Define each cron in its own workflow
 
-A JSON array of crons, committed with the code so its history is readable. Each cron has the following structure:
-
-```json
-{
-  "name": "kids-playlist",
-  "action": "sync-playlists",
-  "arguments": []
-}
-```
-
-- `name` identifies the cron, and must be unique: this is how a workflow names the crons it runs.
-- `action` is the script to launch, can be "last-tracks", "sync-playlists" or "remove-duplicates".
-- `arguments` are the arguments passed to the script, and depend on the action. See below.
-
-The file is validated before any call to Deezer: a missing or malformed field fails the run immediately.
-
-### Put the tokens in secrets
-
-The file holds no token. Wherever one is needed it names the secret carrying it, as `$MY_ACCESS_TOKEN`, and the run fills it in. A literal token is rejected by the validation, so one cannot be committed here by mistake.
-
-Each name is a repository secret, added under `Settings` > `Secrets and variables` > `Actions` > `New repository secret`, and passed to the job by `crons.yml`. Adding a token means adding a secret and the matching line in that workflow. A placeholder with no secret behind it fails the run, naming the secret and never its value.
-
-### Give each cron its own workflow
-
-One workflow per cron, named after it, carrying its schedule: `cron-family-playlist.yml`, `cron-lucas.yml`, and so on. `crons.yml` holds the steps they share and never runs on its own.
+A cron is one file in `.github/workflows`, named after it, holding everything about it: when it runs, what it does, and on which playlists.
 
 ```yaml
-name: Cron car-playlist
+name: Cron thibaut
 
 on:
   schedule:
-    - cron: '17 * * * *'
+    - cron: '37 * * * *'
   workflow_dispatch:
 
 concurrency:
@@ -50,15 +26,31 @@ jobs:
   run:
     uses: ./.github/workflows/crons.yml
     with:
-      names: car-playlist
+      cron: thibaut
+      action: sync-playlists
+      arguments: |
+        [
+          { "access_token": "$MY_ACCESS_TOKEN", "playlistId": 1008179901 },
+          { "access_token": "$LYNDS_ACCESS_TOKEN", "playlistId": 3143324282 }
+        ]
     secrets: inherit
 ```
 
-One file per cron rather than one per cadence, because the Actions tab then reads as a dashboard: each cron has its own name, its own green or red history, and its own button to run it by hand. Two crons can share a script — `family-playlist` and `car-playlist` are both `last-tracks` — and grouping them in one job makes their log lines indistinguishable.
+- `cron` names it in the logs.
+- `action` is the script to launch, one of "last-tracks", "sync-playlists" or "remove-duplicates".
+- `arguments` are the arguments of that action, as JSON. They depend on the action, see below.
 
-A failing cron only reddens its own workflow. The shared concurrency group still keeps them from overlapping, since several read a playlist another one writes, and their minutes are staggered so they do not queue behind one another.
+`crons.yml` holds the steps every cron shares and never runs on its own. Adding a cron means adding one such file, and nothing else.
 
-Adding a cron means adding an entry in `crons.conf.json` and one such file. A name that no cron answers to fails the run, rather than quietly doing nothing.
+One file per cron rather than a central configuration, because the Actions tab then reads as a dashboard: each cron has its own name, its own green or red history, and its own button to run it by hand, and a failing one only reddens itself. The shared concurrency group keeps them from overlapping, since several read a playlist another one writes, and their minutes are staggered so they do not queue behind one another.
+
+Everything is validated before any call to Deezer: a missing or malformed field fails the run immediately.
+
+### Put the tokens in secrets
+
+The workflows hold no token. Wherever one is needed they name the secret carrying it, as `$MY_ACCESS_TOKEN`, and the run fills it in. A literal token is rejected by the validation, so one cannot be committed here by mistake.
+
+Each name is a repository secret, added under `Settings` > `Secrets and variables` > `Actions` > `New repository secret`, and passed to the job by `crons.yml`. Adding a token means adding a secret and the matching line in that workflow. A placeholder with no secret behind it fails the run, naming the secret and never its value.
 
 ## Scripts
 
@@ -68,7 +60,7 @@ Because it's better to have an offline playlist for the car. Because my favorite
 
 Because my kids wants to have their tracks during "apéro", I updated this cron.
 
-#### Structure in `crons.conf.json`
+#### Arguments of the action
 
 ```json
 {
@@ -106,7 +98,7 @@ So I set the playlist public, mom added the playlist to its favorites, Lucas lis
 I didn't set the playlist collaborative, mom created a new playlist, added tracks, Lucas went back to dad... _"What! You don't have my last tracks?"_  
 Ok, new cron.
 
-#### Structure in `crons.conf.json`
+#### Arguments of the action
 
 ```json
 {
@@ -132,7 +124,7 @@ Must be an array of objects with the following properties:
 I have a lot of titles in my favorite playlist and I realized that there could be the same track several times, this is often due to a track present in an album and in an EP, an album that has been reissued, etc. New cron.  
 This will delete last duplicate added track.
 
-#### Structure in `crons.conf.json`
+#### Arguments of the action
 
 ```json
 {
@@ -157,7 +149,7 @@ Must be an objects with the following properties:
 
 The workflows run on their own once the token secrets are set. `Run workflow` on the Actions tab runs a cadence by hand, outside of its schedule.
 
-`pnpm cron:once` is the command they run. It reads `crons.conf.json`, takes the tokens from the environment, and `CRON_NAMES` restricts it to a comma separated list of crons. Handy to check a token from a terminal without waiting for a schedule.
+`pnpm cron:once` is the command they run. It reads the cron from `CRON_NAME`, `CRON_ACTION` and `CRON_ARGUMENTS`, and the tokens from the environment beside them. Handy to check a token from a terminal without waiting for a schedule.
 
 The other scripts are `pnpm test`, `pnpm lint` and `pnpm typecheck`, which the `Tests` workflow runs on every push and pull request. Nothing is type checked at run time: the crons are executed by `tsx`, so a type error fails the build rather than a nightly run.
 
