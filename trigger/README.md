@@ -46,6 +46,7 @@ A fine-grained token expires. GitHub emails before it does; a dispatch answering
 
 ## When GitHub fixes its scheduler
 
-`probe-direct.yml` is still on `master` for that. It is five lines, it prints
-the date every five minutes, and it has never once run. The day it does, the
-scheduler is back, and this whole directory can go.
+The workflows still carry their own `schedule` lines, doing nothing. The day one
+of them produces a run of its own — a run marked `schedule` rather than
+`workflow_dispatch` in the Actions tab — the scheduler is back and this whole
+directory can go.
