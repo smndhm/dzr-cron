@@ -86,7 +86,13 @@ const render = (payload: unknown): string => {
   return JSON.stringify(redactTokens(payload));
 };
 
-export default function setLogger (script: string, output: LogOutput = toStdout) {
+export type Logger = {
+  info: (payload: unknown, extra?: unknown) => void;
+  warn: (payload: unknown, extra?: unknown) => void;
+  error: (payload: unknown, extra?: unknown) => void;
+};
+
+export default function setLogger (script: string, output: LogOutput = toStdout): Logger {
   const log = (level: string, payload: unknown, extra?: unknown): void => {
     const parts = [render(payload)];
     if (extra !== undefined) {

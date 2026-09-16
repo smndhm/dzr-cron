@@ -1,3 +1,6 @@
+import { mkdtempSync, readFileSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
 import runOnce from './run-once';
 import { CRON_NAME_ENV, CRON_ACTION_ENV, CRON_ARGUMENTS_ENV } from './utils/cron-conf';
 import setLogger from './utils/logger';
@@ -50,6 +53,14 @@ describe('Run once', () => {
 
     expect(lines.join('\n')).toContain('"action":"cron-started","cron":"kids-playlist"');
     expect(lines.join('\n')).toContain('"action":"cron-ended","cron":"kids-playlist","errors":0');
+  });
+
+  test('Should write the summary GitHub shows on the run page', async () => {
+    const file = join(mkdtempSync(join(tmpdir(), 'run-once-')), 'summary.md');
+
+    await runOnce({ ...env(), GITHUB_STEP_SUMMARY: file });
+
+    expect(readFileSync(file, 'utf8')).toContain('## kids-playlist');
   });
 
   test('Should report the errors logged by the script', async () => {
