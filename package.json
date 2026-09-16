@@ -13,9 +13,6 @@
   },
   "author": "smndhm",
   "license": "ISC",
-  "dependencies": {
-    "pino": "10.3.1"
-  },
   "devDependencies": {
     "@eslint/js": "10.0.1",
     "@vitest/coverage-v8": "5.0.1",

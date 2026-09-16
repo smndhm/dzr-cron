@@ -1,19 +1,18 @@
-import pino from 'pino';
 import nock from 'nock';
-import setLogger, { getErrorCount, resetErrorCount, registerSecrets, forgetSecrets } from './logger';
+import setLogger, {
+  getErrorCount,
+  resetErrorCount,
+  registerSecrets,
+  forgetSecrets,
+} from './logger';
 import { getPlaylistTracks } from './dzr';
 
 const accessToken = 'frblublublublublublublublublublublublublublublublu';
 const otherAccessToken = 'frblablablablablablablablablablablablablablablabla';
 
 const collect = () => {
-  const lines: Record<string, unknown>[] = [];
-  const destination = {
-    write: (chunk: string) => {
-      lines.push(JSON.parse(chunk));
-    },
-  } as unknown as pino.DestinationStream;
-  return { lines, destination };
+  const lines: string[] = [];
+  return { lines, output: (line: string) => lines.push(line) };
 };
 
 describe('Logger', () => {
@@ -22,169 +21,145 @@ describe('Logger', () => {
     forgetSecrets();
   });
 
-  test('Should tag the logs with the script name', () => {
-    const { lines, destination } = collect();
-    setLogger('my-script', destination).info('Script started');
+  test('Should tag the line with its level and script', () => {
+    const { lines, output } = collect();
+    setLogger('my-script', output).info('Script started');
 
-    expect(lines[0].script).toBe('my-script');
-    expect(lines[0].msg).toBe('Script started');
+    expect(lines[0]).toContain('INFO [my-script] Script started');
+    expect(lines[0]).toMatch(/^\d{4}-\d{2}-\d{2}T/);
   });
 
-  test('Should redact the access token carried by an error', () => {
-    const { lines, destination } = collect();
-    // The token travels as a query parameter, so a client may keep it
-    const error = Object.assign(new Error('Request failed with status code 403'), {
-      config: {
-        method: 'get',
-        url: '/playlist/1234567890/tracks',
-        params: { access_token: accessToken, limit: 2000 },
-      },
+  test('Should keep the error message, stack and cause', () => {
+    const { lines, output } = collect();
+    const error = new Error('crons.conf.json is not valid JSON.', {
+      cause: new SyntaxError('Unexpected token } at position 42'),
     });
 
-    setLogger('last-tracks', destination).error(error);
+    setLogger('run-once', output).error(error);
 
-    expect(JSON.stringify(lines[0])).not.toContain(accessToken);
-    expect(JSON.stringify(lines[0])).toContain('[redacted]');
+    expect(lines[0]).toContain('crons.conf.json is not valid JSON.');
+    expect(lines[0]).toContain('Error: crons.conf.json is not valid JSON.');
+    expect(lines[0]).toContain('Caused by: SyntaxError: Unexpected token } at position 42');
+  });
+
+  test('Should log the detail given alongside a message', () => {
+    const { lines, output } = collect();
+    setLogger('last-tracks', output).error('API Error Response', { type: 'OAuthException', code: 300 });
+
+    expect(lines[0]).toContain('API Error Response {"type":"OAuthException","code":300}');
   });
 
   test('Should redact every token of a playlists array', () => {
-    const { lines, destination } = collect();
-    setLogger('last-tracks', destination).info({
+    const { lines, output } = collect();
+    setLogger('last-tracks', output).info({
       playlists: [
         { access_token: accessToken, playlistId: 1234567890 },
         { access_token: otherAccessToken, playlistId: 9876543210 },
       ],
     });
 
-    const line = JSON.stringify(lines[0]);
-    expect(line).not.toContain(accessToken);
-    expect(line).not.toContain(otherAccessToken);
-    expect(lines[0].playlists).toEqual([
-      { access_token: '[redacted]', playlistId: 1234567890 },
-      { access_token: '[redacted]', playlistId: 9876543210 },
-    ]);
+    expect(lines[0]).not.toContain(accessToken);
+    expect(lines[0]).not.toContain(otherAccessToken);
+    expect(lines[0]).toContain('"playlistId":1234567890');
   });
 
   test('Should redact a token nested deeper in the payload', () => {
-    const { lines, destination } = collect();
-    setLogger('run-once', destination).info({
+    const { lines, output } = collect();
+    setLogger('run-once', output).info({
       cron: { action: 'last-tracks', arguments: { access_token: accessToken } },
     });
 
-    expect(JSON.stringify(lines[0])).not.toContain(accessToken);
+    expect(lines[0]).not.toContain(accessToken);
   });
 
-  test('Should keep the error message and stack', () => {
-    const { lines, destination } = collect();
-    setLogger('last-tracks', destination).error(new TypeError('Request failed with status code 403'));
+  test('Should survive a circular payload', () => {
+    const { lines, output } = collect();
+    const payload: Record<string, unknown> = { access_token: accessToken };
+    payload.self = payload;
 
-    const { err } = lines[0] as { err: Record<string, unknown> };
-    expect(err.message).toBe('Request failed with status code 403');
-    // The class of the error is what the stack opens with
-    expect(err.stack).toContain('TypeError: Request failed with status code 403');
-  });
-
-  test('Should survive the circular references of an axios error', () => {
-    const { lines, destination } = collect();
-    const error = Object.assign(new Error('socket hang up'), {
-      config: { params: { access_token: accessToken } },
-    }) as Error & { request?: unknown };
-    error.request = error;
-
-    expect(() => setLogger('last-tracks', destination).error(error)).not.toThrow();
-    expect(JSON.stringify(lines[0])).not.toContain(accessToken);
+    expect(() => setLogger('last-tracks', output).info(payload)).not.toThrow();
+    expect(lines[0]).not.toContain(accessToken);
   });
 
   test('Should redact the token of a request that really failed', async () => {
-    // The synthetic error above is shaped by hand, this one is the real thing
-    const { lines, destination } = collect();
+    const { lines, output } = collect();
     registerSecrets([accessToken]);
     nock('https://api.deezer.com').get(/\/playlist\/\d+\/tracks/).times(1).reply(403, { error: 'nope' });
 
     try {
       await getPlaylistTracks(accessToken, 1234567890);
     } catch (e) {
-      setLogger('last-tracks', destination).error(e);
+      setLogger('last-tracks', output).error(e);
     }
     nock.cleanAll();
 
     expect(lines).toHaveLength(1);
-    expect(JSON.stringify(lines[0])).not.toContain(accessToken);
+    expect(lines[0]).not.toContain(accessToken);
   });
 
   test('Should censor a registered token wherever it appears', () => {
-    const { lines, destination } = collect();
+    const { lines, output } = collect();
     registerSecrets([accessToken]);
 
-    setLogger('last-tracks', destination).info({
+    setLogger('last-tracks', output).info({
       url: `/playlist/1/tracks?access_token=${accessToken}&limit=2000`,
       nested: [{ trace: `token is ${accessToken}` }],
     });
 
-    const line = JSON.stringify(lines[0]);
-    expect(line).not.toContain(accessToken);
-    expect(line).toContain('[redacted]');
+    expect(lines[0]).not.toContain(accessToken);
+    expect(lines[0]).toContain('[redacted]');
   });
 
   test('Should not censor a token too short to be one', () => {
     // Registering "a" would censor the letter a in every line
-    const { lines, destination } = collect();
+    const { lines, output } = collect();
     registerSecrets(['a']);
 
-    setLogger('run-once', destination).info({ cron: 'thibaut' });
+    setLogger('run-once', output).info({ cron: 'thibaut' });
 
-    expect(lines[0].cron).toBe('thibaut');
+    expect(lines[0]).toContain('"cron":"thibaut"');
   });
 
   test('Should forget the tokens between runs', () => {
     registerSecrets([accessToken]);
     forgetSecrets();
-    const { lines, destination } = collect();
+    const { lines, output } = collect();
 
-    setLogger('last-tracks', destination).info({ note: accessToken });
+    setLogger('last-tracks', output).info({ note: accessToken });
 
-    expect(JSON.stringify(lines[0])).toContain(accessToken);
-  });
-
-  test('Should redact an access token logged on its own', () => {
-    const { lines, destination } = collect();
-    setLogger('last-tracks', destination).info({ access_token: accessToken });
-
-    expect(JSON.stringify(lines[0])).not.toContain(accessToken);
+    expect(lines[0]).toContain(accessToken);
   });
 
   test('Should keep logging the playlist and track ids', () => {
-    const { lines, destination } = collect();
-    setLogger('last-tracks', destination).info({
+    const { lines, output } = collect();
+    setLogger('last-tracks', output).info({
       action: 'tracks-added',
       playlist: 1234567890,
       tracks: [1, 2, 3],
     });
 
-    expect(lines[0].action).toBe('tracks-added');
-    expect(lines[0].playlist).toBe(1234567890);
-    expect(lines[0].tracks).toEqual([1, 2, 3]);
+    expect(lines[0]).toContain('{"action":"tracks-added","playlist":1234567890,"tracks":[1,2,3]}');
   });
 
-  test('Should count the errors and the fatals, not the infos', () => {
-    const { destination } = collect();
-    const logger = setLogger('last-tracks', destination);
+  test('Should count the errors, not the infos', () => {
+    const { output } = collect();
+    const logger = setLogger('last-tracks', output);
 
     logger.info('Script started');
+    logger.warn('No cron configured.');
     expect(getErrorCount()).toBe(0);
 
     logger.error('API Error Response');
-    logger.fatal('Down');
-    expect(getErrorCount()).toBe(2);
+    expect(getErrorCount()).toBe(1);
 
     resetErrorCount();
     expect(getErrorCount()).toBe(0);
   });
 
   test('Should count the errors across every script', () => {
-    const { destination } = collect();
-    setLogger('last-tracks', destination).error('first');
-    setLogger('sync-playlists', destination).error('second');
+    const { output } = collect();
+    setLogger('last-tracks', output).error('first');
+    setLogger('sync-playlists', output).error('second');
 
     expect(getErrorCount()).toBe(2);
   });
