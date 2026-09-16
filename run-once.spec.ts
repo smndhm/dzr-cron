@@ -66,6 +66,26 @@ describe('Run once', () => {
     expect(mockRemoveDuplicates).toBeCalledTimes(1);
   });
 
+  test('Should name each cron before it runs', async () => {
+    // Two crons can share a script, so the log has to say which one is speaking
+    const lines: string[] = [];
+    await runOnce(env('car-playlist,remove-duplicates'), FIXTURE, (line) => lines.push(line));
+
+    expect(lines.join('\n')).toContain('"action":"cron-started","cron":"car-playlist"');
+    expect(lines.join('\n')).toContain('"action":"cron-started","cron":"remove-duplicates"');
+  });
+
+  test('Should let the other crons run when one fails', async () => {
+    mockLastTracks.mockRejectedValue(new Error('Deezer answered 403 Forbidden.'));
+
+    const errors = await runOnce(env('car-playlist,remove-duplicates'), FIXTURE);
+
+    // car-playlist threw, remove-duplicates still ran, and the run is red
+    expect(mockLastTracks).toBeCalledTimes(1);
+    expect(mockRemoveDuplicates).toBeCalledTimes(1);
+    expect(errors).toBe(1);
+  });
+
   test('Should reject an unknown name rather than run nothing', async () => {
     await expect(runOnce(env('kid-playlist'), FIXTURE))
       .rejects.toThrow('Unknown cron name: kid-playlist');
