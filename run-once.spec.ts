@@ -5,13 +5,13 @@ import lastTracks from './cron-scripts/last-tracks';
 import syncPlaylists from './cron-scripts/sync-playlists';
 import removeDuplicates from './cron-scripts/remove-duplicates';
 
-jest.mock('./cron-scripts/last-tracks');
-jest.mock('./cron-scripts/sync-playlists');
-jest.mock('./cron-scripts/remove-duplicates');
+vi.mock('./cron-scripts/last-tracks');
+vi.mock('./cron-scripts/sync-playlists');
+vi.mock('./cron-scripts/remove-duplicates');
 
-const mockLastTracks = jest.mocked(lastTracks);
-const mockSyncPlaylists = jest.mocked(syncPlaylists);
-const mockRemoveDuplicates = jest.mocked(removeDuplicates);
+const mockLastTracks = vi.mocked(lastTracks);
+const mockSyncPlaylists = vi.mocked(syncPlaylists);
+const mockRemoveDuplicates = vi.mocked(removeDuplicates);
 
 const accessToken = 'frblublublublublublublublublublublublublublublublu';
 const playlist = { access_token: accessToken, playlistId: 1234567890 };

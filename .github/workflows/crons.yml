@@ -18,23 +18,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: pnpm/action-setup@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
+          cache: pnpm
 
       - name: Install modules
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       # GitHub only masks the secret as a whole: the tokens nested in it have to
       # be registered one by one, before anything can log them.
       - name: Mask Deezer access tokens
-        run: npm run --silent cron:mask
+        run: pnpm run --silent cron:mask
         env:
           CRONS_CONF: ${{ secrets.CRONS_CONF }}
 
       - name: Run crons
-        run: npm run cron:once
+        run: pnpm run cron:once
         env:
           CRONS_CONF: ${{ secrets.CRONS_CONF }}
           CRON_NAMES: ${{ inputs.names }}
