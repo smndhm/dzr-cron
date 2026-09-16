@@ -1,18 +1,25 @@
-# Steps shared by every schedule. The cadences live in the crons-*.yml files,
-# this one never runs on its own.
-name: Deezer crons
+# Steps shared by every cron. Each cron-*.yml file defines one cron and when it
+# runs; this one never runs on its own.
+name: Deezer cron
 
 on:
   workflow_call:
     inputs:
-      names:
-        description: 'Comma separated names of the crons to run, as set in the configuration. Empty runs them all.'
-        required: false
-        default: ''
+      cron:
+        description: 'Name of the cron, as it appears in the logs'
+        required: true
+        type: string
+      action:
+        description: 'last-tracks, sync-playlists or remove-duplicates'
+        required: true
+        type: string
+      arguments:
+        description: 'Arguments of the action, as JSON. Tokens are named, never written.'
+        required: true
         type: string
 
 jobs:
-  run-crons:
+  run-cron:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -36,12 +43,17 @@ jobs:
           MY_ACCESS_TOKEN: ${{ secrets.MY_ACCESS_TOKEN }}
           LYNDS_ACCESS_TOKEN: ${{ secrets.LYNDS_ACCESS_TOKEN }}
           LUCAS_ACCESS_TOKEN: ${{ secrets.LUCAS_ACCESS_TOKEN }}
+          CRON_NAME: ${{ inputs.cron }}
+          CRON_ACTION: ${{ inputs.action }}
+          CRON_ARGUMENTS: ${{ inputs.arguments }}
 
       # The tokens stay out of the install step, which runs third party code
-      - name: Run crons
+      - name: Run cron
         run: pnpm run cron:once
         env:
           MY_ACCESS_TOKEN: ${{ secrets.MY_ACCESS_TOKEN }}
           LYNDS_ACCESS_TOKEN: ${{ secrets.LYNDS_ACCESS_TOKEN }}
           LUCAS_ACCESS_TOKEN: ${{ secrets.LUCAS_ACCESS_TOKEN }}
-          CRON_NAMES: ${{ inputs.names }}
+          CRON_NAME: ${{ inputs.cron }}
+          CRON_ACTION: ${{ inputs.action }}
+          CRON_ARGUMENTS: ${{ inputs.arguments }}

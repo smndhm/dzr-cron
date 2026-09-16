@@ -1,0 +1,31 @@
+name: Cron thibaut
+
+on:
+  # Every hour, see cron-family-playlist.yml for the staggering.
+  schedule:
+    - cron: '37 * * * *'
+  workflow_dispatch:
+
+# Several crons read a playlist another one writes, so they never overlap
+concurrency:
+  group: dzr-crons
+  cancel-in-progress: false
+
+jobs:
+  run:
+    uses: ./.github/workflows/crons.yml
+    with:
+      cron: thibaut
+      action: sync-playlists
+      arguments: |
+        [
+          {
+            "access_token": "$MY_ACCESS_TOKEN",
+            "playlistId": 1008179901
+          },
+          {
+            "access_token": "$LYNDS_ACCESS_TOKEN",
+            "playlistId": 3143324282
+          }
+        ]
+    secrets: inherit

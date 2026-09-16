@@ -1,5 +1,5 @@
 import runCron from './run-cron';
-import { Crons } from './crons-conf';
+import { Cron } from './cron-conf';
 import lastTracks from '../cron-scripts/last-tracks';
 import syncPlaylists from '../cron-scripts/sync-playlists';
 import removeDuplicates from '../cron-scripts/remove-duplicates';
@@ -22,7 +22,7 @@ describe('Run cron', () => {
       name: 'car-playlist',
       action: 'last-tracks',
       arguments: cronArguments,
-    } as Crons[number]);
+    } as Cron);
 
     expect(mockLastTracks).toBeCalledWith(cronArguments);
     expect(mockSyncPlaylists).not.toBeCalled();
@@ -35,7 +35,7 @@ describe('Run cron', () => {
       name: 'kids-playlist',
       action: 'sync-playlists',
       arguments: cronArguments,
-    } as Crons[number]);
+    } as Cron);
 
     expect(mockSyncPlaylists).toBeCalledWith(cronArguments);
     expect(mockLastTracks).not.toBeCalled();
@@ -47,7 +47,7 @@ describe('Run cron', () => {
       name: 'remove-duplicates',
       action: 'remove-duplicates',
       arguments: playlist,
-    } as Crons[number]);
+    } as Cron);
 
     expect(mockRemoveDuplicates).toBeCalledWith(playlist);
     expect(mockLastTracks).not.toBeCalled();
@@ -55,7 +55,7 @@ describe('Run cron', () => {
   });
 
   test('Should ignore an unknown action', async () => {
-    await runCron({ name: 'nope', action: 'nope' } as unknown as Crons[number]);
+    await runCron({ name: 'nope', action: 'nope' } as unknown as Cron);
 
     expect(mockLastTracks).not.toBeCalled();
     expect(mockSyncPlaylists).not.toBeCalled();

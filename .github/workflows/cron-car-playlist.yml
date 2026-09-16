@@ -1,0 +1,31 @@
+name: Cron car-playlist
+
+on:
+  # Every hour, see cron-family-playlist.yml for the staggering.
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+
+# Several crons read a playlist another one writes, so they never overlap
+concurrency:
+  group: dzr-crons
+  cancel-in-progress: false
+
+jobs:
+  run:
+    uses: ./.github/workflows/crons.yml
+    with:
+      cron: car-playlist
+      action: last-tracks
+      arguments: |
+        {
+          "access_token": "$MY_ACCESS_TOKEN",
+          "playlistId": 6582056564,
+          "playlists": [
+            {
+              "access_token": "$MY_ACCESS_TOKEN",
+              "playlistId": 183341731
+            }
+          ]
+        }
+    secrets: inherit

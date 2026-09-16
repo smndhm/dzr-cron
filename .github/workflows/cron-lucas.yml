@@ -1,0 +1,35 @@
+name: Cron lucas
+
+on:
+  # Every hour, see cron-family-playlist.yml for the staggering.
+  schedule:
+    - cron: '27 * * * *'
+  workflow_dispatch:
+
+# Several crons read a playlist another one writes, so they never overlap
+concurrency:
+  group: dzr-crons
+  cancel-in-progress: false
+
+jobs:
+  run:
+    uses: ./.github/workflows/crons.yml
+    with:
+      cron: lucas
+      action: sync-playlists
+      arguments: |
+        [
+          {
+            "access_token": "$MY_ACCESS_TOKEN",
+            "playlistId": 417575485
+          },
+          {
+            "access_token": "$LYNDS_ACCESS_TOKEN",
+            "playlistId": 2937830122
+          },
+          {
+            "access_token": "$LUCAS_ACCESS_TOKEN",
+            "playlistId": 12159720251
+          }
+        ]
+    secrets: inherit
