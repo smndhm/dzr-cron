@@ -15,6 +15,13 @@
       "allowedVersions": "<7"
     },
     {
+      "description": "@types/node follows the Node version the workflows run, currently 22",
+      "matchPackageNames": [
+        "@types/node"
+      ],
+      "allowedVersions": "<23"
+    },
+    {
       "description": "The workflows are how this repository runs: keep their actions current",
       "matchManagers": [
         "github-actions"
