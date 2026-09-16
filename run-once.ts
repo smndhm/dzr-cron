@@ -1,7 +1,7 @@
 // Import cron tasks runner
 import runCron from './utils/run-cron';
 // Crons parameters
-import loadCrons, { selectCrons } from './utils/crons-conf';
+import loadCrons, { selectCrons, CRONS_CONF_FILE } from './utils/crons-conf';
 // Import logger
 import setLogger, { getErrorCount, resetErrorCount } from './utils/logger';
 
@@ -13,10 +13,10 @@ export const CRON_NAMES_ENV = 'CRON_NAMES';
 // Runs the crons named in CRON_NAMES once, then returns the number of logged
 // errors so the caller can exit accordingly. The schedule itself belongs to the
 // workflow: this only decides what runs, never when.
-export default async function runOnce (env: NodeJS.ProcessEnv = process.env): Promise<number> {
+export default async function runOnce (env: NodeJS.ProcessEnv = process.env, file: string = CRONS_CONF_FILE): Promise<number> {
   resetErrorCount();
 
-  const crons = selectCrons(loadCrons(env), env[CRON_NAMES_ENV] ?? '');
+  const crons = selectCrons(loadCrons(env, file), env[CRON_NAMES_ENV] ?? '');
 
   if (crons.length === 0) {
     // An empty configuration is deliberate, unlike a missing one, which throws
@@ -35,7 +35,7 @@ export default async function runOnce (env: NodeJS.ProcessEnv = process.env): Pr
   return errors;
 }
 
-// Entry point, `npm run cron:once`
+// Entry point, `pnpm cron:once`
 if (require.main === module) {
   runOnce()
     .then((errors) => {

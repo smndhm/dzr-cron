@@ -28,15 +28,20 @@ jobs:
       - name: Install modules
         run: pnpm install --frozen-lockfile
 
-      # GitHub only masks the secret as a whole: the tokens nested in it have to
-      # be registered one by one, before anything can log them.
+      # GitHub masks these three on its own. This registers them again, which
+      # also covers a token reaching the logs by another route.
       - name: Mask Deezer access tokens
         run: pnpm run --silent cron:mask
         env:
-          CRONS_CONF: ${{ secrets.CRONS_CONF }}
+          MY_ACCESS_TOKEN: ${{ secrets.MY_ACCESS_TOKEN }}
+          LYNDS_ACCESS_TOKEN: ${{ secrets.LYNDS_ACCESS_TOKEN }}
+          LUCAS_ACCESS_TOKEN: ${{ secrets.LUCAS_ACCESS_TOKEN }}
 
+      # The tokens stay out of the install step, which runs third party code
       - name: Run crons
         run: pnpm run cron:once
         env:
-          CRONS_CONF: ${{ secrets.CRONS_CONF }}
+          MY_ACCESS_TOKEN: ${{ secrets.MY_ACCESS_TOKEN }}
+          LYNDS_ACCESS_TOKEN: ${{ secrets.LYNDS_ACCESS_TOKEN }}
+          LUCAS_ACCESS_TOKEN: ${{ secrets.LUCAS_ACCESS_TOKEN }}
           CRON_NAMES: ${{ inputs.names }}
