@@ -1,0 +1,13 @@
+# Throwaway, see probe-direct.yml. The half of the pair that is called rather
+# than scheduled, standing in for crons.yml without touching Deezer.
+name: Probe called
+
+on:
+  workflow_call:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - run: date -u '+called probe ran at %H:%M UTC'
