@@ -1,10 +1,12 @@
 name: Cron family-playlist
 
 on:
-  # Every hour. Minutes are staggered across the crons so they do not queue
-  # behind one another, and so a slot dropped by GitHub costs one cron, not all.
+  # Every hour. GitHub names the start of the hour as its high load window and
+  # says a queued job may be dropped there, so every cron sits in the second
+  # half. Minutes are staggered across them so they do not queue behind one
+  # another, and so a dropped slot costs one cron rather than all five.
   schedule:
-    - cron: '7 * * * *'
+    - cron: '23 * * * *'
   workflow_dispatch:
 
 # Several crons read a playlist another one writes, so they never overlap

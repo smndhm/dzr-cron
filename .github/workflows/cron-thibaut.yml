@@ -3,7 +3,7 @@ name: Cron thibaut
 on:
   # Every hour, see cron-family-playlist.yml for the staggering.
   schedule:
-    - cron: '37 * * * *'
+    - cron: '53 * * * *'
   workflow_dispatch:
 
 # Several crons read a playlist another one writes, so they never overlap
