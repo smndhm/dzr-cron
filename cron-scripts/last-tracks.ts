@@ -8,7 +8,7 @@ import {
 import setLogger from '../utils/logger';
 const logger = setLogger('last-tracks');
 // Import types
-import { AtLeastOne, Playlist } from '../types';
+import { AtLeastOne, Playlist, DeezerTrack } from '../types';
 
 // Script
 export default async function lastTracks({
@@ -22,7 +22,7 @@ export default async function lastTracks({
     logger.info('Script started');
 
     // GET PLAYLISTS CONTENT
-    const dzrPlaylists = [];
+    const dzrPlaylists: DeezerTrack[][] = [];
     for await (const { access_token, playlistId } of playlists) {
       const data = await getPlaylistTracks(access_token, playlistId);
       if (!data.error) {
@@ -38,27 +38,28 @@ export default async function lastTracks({
       return;
     }
 
-    let dzrTracksId: number[] = [];
-    for (let playlistTracks of dzrPlaylists) {
-      // most recent first
-      playlistTracks.sort(
-        (a: { time_add: number }, b: { time_add: number }) =>
-          b.time_add - a.time_add,
-      );
-      // filter tracks
-      playlistTracks = playlistTracks.filter(
-        (track: { readable: boolean; explicit_lyrics: boolean; id: number }) =>
-          track.readable && // this params is sometimes not correct...
-          (!noExplicitLyrics || !track.explicit_lyrics) && // remove tracks with explicit lyrics
-          !dzrTracksId.includes(track.id),
-      );
-      // limit to N tracks
-      playlistTracks = playlistTracks.slice(0, nbTracks);
-      // Add tracks
-      dzrTracksId = [
-        ...dzrTracksId,
-        ...playlistTracks.map((track: { id: number }) => track.id),
-      ];
+    const dzrTracksId: number[] = [];
+    // Membership is checked once per track of every playlist, so a Set rather
+    // than a scan of the ids kept so far
+    const keptTracksId = new Set<number>();
+    for (const playlistTracks of dzrPlaylists) {
+      playlistTracks
+        // most recent first
+        .sort((a, b) => b.time_add - a.time_add)
+        // filter tracks
+        .filter(
+          (track) =>
+            track.readable && // this params is sometimes not correct...
+            (!noExplicitLyrics || !track.explicit_lyrics) && // remove tracks with explicit lyrics
+            !keptTracksId.has(track.id),
+        )
+        // limit to N tracks
+        .slice(0, nbTracks)
+        // Add tracks
+        .forEach((track) => {
+          keptTracksId.add(track.id);
+          dzrTracksId.push(track.id);
+        });
     }
 
     // GET DESTINATION PLAYLIST TRACKS
@@ -67,13 +68,14 @@ export default async function lastTracks({
       playlistId,
     );
 
-    const dzrDestinationPlaylistTracksId = dzrDestinationPlaylistTracks.map(
-      (track: { id: number }) => track.id,
+    const dzrDestinationPlaylistTracksId: number[] = dzrDestinationPlaylistTracks.map(
+      (track: DeezerTrack) => track.id,
     );
+    const destinationTracksId = new Set(dzrDestinationPlaylistTracksId);
 
     // REMOVE TRACKS FROM PLAYLIST
     const tracksToRemove = dzrDestinationPlaylistTracksId.filter(
-      (track) => !dzrTracksId.includes(track),
+      (track) => !keptTracksId.has(track),
     );
     if (tracksToRemove.length) {
       await deletePlaylistTracks(access_token, playlistId, tracksToRemove);
@@ -86,7 +88,7 @@ export default async function lastTracks({
 
     // GET TRACKS TO ADD
     const tracksToAdd = dzrTracksId.filter(
-      (track) => !dzrDestinationPlaylistTracksId.includes(track),
+      (track) => !destinationTracksId.has(track),
     );
     if (tracksToAdd.length) {
       await postPlaylistTracks(access_token, playlistId, tracksToAdd);

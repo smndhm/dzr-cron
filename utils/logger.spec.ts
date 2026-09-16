@@ -1,5 +1,7 @@
 import pino from 'pino';
-import setLogger, { getErrorCount, resetErrorCount } from './logger';
+import nock from 'nock';
+import setLogger, { getErrorCount, resetErrorCount, registerSecrets, forgetSecrets } from './logger';
+import { getPlaylistTracks } from './dzr';
 
 const accessToken = 'frblublublublublublublublublublublublublublublublu';
 const otherAccessToken = 'frblablablablablablablablablablablablablablablabla';
@@ -17,6 +19,7 @@ const collect = () => {
 describe('Logger', () => {
   beforeEach(() => {
     resetErrorCount();
+    forgetSecrets();
   });
 
   test('Should tag the logs with the script name', () => {
@@ -27,9 +30,9 @@ describe('Logger', () => {
     expect(lines[0].msg).toBe('Script started');
   });
 
-  test('Should redact the access token of a failed request', () => {
+  test('Should redact the access token carried by an error', () => {
     const { lines, destination } = collect();
-    // Shape of an axios error: the token travels as a query parameter
+    // The token travels as a query parameter, so a client may keep it
     const error = Object.assign(new Error('Request failed with status code 403'), {
       config: {
         method: 'get',
@@ -71,14 +74,14 @@ describe('Logger', () => {
     expect(JSON.stringify(lines[0])).not.toContain(accessToken);
   });
 
-  test('Should keep the error type, message and stack', () => {
+  test('Should keep the error message and stack', () => {
     const { lines, destination } = collect();
-    setLogger('last-tracks', destination).error(new Error('Request failed with status code 403'));
+    setLogger('last-tracks', destination).error(new TypeError('Request failed with status code 403'));
 
     const { err } = lines[0] as { err: Record<string, unknown> };
-    expect(err.type).toBe('Error');
     expect(err.message).toBe('Request failed with status code 403');
-    expect(err.stack).toContain('Error: Request failed with status code 403');
+    // The class of the error is what the stack opens with
+    expect(err.stack).toContain('TypeError: Request failed with status code 403');
   });
 
   test('Should survive the circular references of an axios error', () => {
@@ -90,6 +93,57 @@ describe('Logger', () => {
 
     expect(() => setLogger('last-tracks', destination).error(error)).not.toThrow();
     expect(JSON.stringify(lines[0])).not.toContain(accessToken);
+  });
+
+  test('Should redact the token of a request that really failed', async () => {
+    // The synthetic error above is shaped by hand, this one is the real thing
+    const { lines, destination } = collect();
+    registerSecrets([accessToken]);
+    nock('https://api.deezer.com').get(/\/playlist\/\d+\/tracks/).times(1).reply(403, { error: 'nope' });
+
+    try {
+      await getPlaylistTracks(accessToken, 1234567890);
+    } catch (e) {
+      setLogger('last-tracks', destination).error(e);
+    }
+    nock.cleanAll();
+
+    expect(lines).toHaveLength(1);
+    expect(JSON.stringify(lines[0])).not.toContain(accessToken);
+  });
+
+  test('Should censor a registered token wherever it appears', () => {
+    const { lines, destination } = collect();
+    registerSecrets([accessToken]);
+
+    setLogger('last-tracks', destination).info({
+      url: `/playlist/1/tracks?access_token=${accessToken}&limit=2000`,
+      nested: [{ trace: `token is ${accessToken}` }],
+    });
+
+    const line = JSON.stringify(lines[0]);
+    expect(line).not.toContain(accessToken);
+    expect(line).toContain('[redacted]');
+  });
+
+  test('Should not censor a token too short to be one', () => {
+    // Registering "a" would censor the letter a in every line
+    const { lines, destination } = collect();
+    registerSecrets(['a']);
+
+    setLogger('run-once', destination).info({ cron: 'thibaut' });
+
+    expect(lines[0].cron).toBe('thibaut');
+  });
+
+  test('Should forget the tokens between runs', () => {
+    registerSecrets([accessToken]);
+    forgetSecrets();
+    const { lines, destination } = collect();
+
+    setLogger('last-tracks', destination).info({ note: accessToken });
+
+    expect(JSON.stringify(lines[0])).toContain(accessToken);
   });
 
   test('Should redact an access token logged on its own', () => {

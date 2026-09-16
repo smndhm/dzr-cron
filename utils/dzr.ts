@@ -1,56 +1,36 @@
-// AXIOS PARAMS
-import axios, { AxiosRequestConfig } from 'axios';
-
-axios.defaults.baseURL = 'https://api.deezer.com';
+// Deezer API
+const BASE_URL = 'https://api.deezer.com';
 
 const limit = 2000;
 
-export const getPlaylistTracks = async (access_token: string, playlistId: number) => {
-  const request:AxiosRequestConfig = {
-    method: 'get',
-    url: `/playlist/${playlistId}/tracks`,
-    params: {
-      access_token,
-      limit,
-    },
-  };
-  const { data } = await axios(request);
-  return data;
+type Params = Record<string, string | number>;
+
+// Deezer answers 200 with an `error` payload for its own errors, so only a
+// transport or status failure is thrown from here.
+const request = async (method: string, path: string, params: Params) => {
+  const url = new URL(path, BASE_URL);
+  Object.entries(params).forEach(([key, value]) => {
+    url.searchParams.set(key, String(value));
+  });
+
+  const response = await fetch(url, { method });
+  if (!response.ok) {
+    throw new Error(`Deezer answered ${response.status} ${response.statusText}.`);
+  }
+
+  // The write endpoints can answer with an empty body
+  const body = await response.text();
+  return body ? JSON.parse(body) : undefined;
 };
 
-export const deletePlaylistTracks = async (access_token: string, playlistId: number, songs: number[]) => {
-  const request: AxiosRequestConfig = {
-    method: 'delete',
-    url: `/playlist/${playlistId}/tracks`,
-    params: {
-      access_token,
-      songs: songs.join(','),
-    },
-  };
-  return await axios(request);
-};
+export const getPlaylistTracks = (access_token: string, playlistId: number) =>
+  request('GET', `/playlist/${playlistId}/tracks`, { access_token, limit });
 
-export const postPlaylistTracks = async (access_token: string, playlistId: number, songs: number[]) => {
-  const request: AxiosRequestConfig = {
-    method: 'post',
-    url: `/playlist/${playlistId}/tracks`,
-    params: {
-      access_token,
-      songs: songs.join(','),
-    },
-  };
-  return await axios(request);
-};
+export const deletePlaylistTracks = (access_token: string, playlistId: number, songs: number[]) =>
+  request('DELETE', `/playlist/${playlistId}/tracks`, { access_token, songs: songs.join(',') });
 
-export const postPlaylistTracksOrder = async (access_token: string, playlistId: number, order: number[]) => {
-  const request: AxiosRequestConfig = {
-    method: 'post',
-    url: `/playlist/${playlistId}/tracks`,
-    params: {
-      access_token,
-      order: order.join(','),
-    },
-  };
-  return await axios(request);
-};
+export const postPlaylistTracks = (access_token: string, playlistId: number, songs: number[]) =>
+  request('POST', `/playlist/${playlistId}/tracks`, { access_token, songs: songs.join(',') });
 
+export const postPlaylistTracksOrder = (access_token: string, playlistId: number, order: number[]) =>
+  request('POST', `/playlist/${playlistId}/tracks`, { access_token, order: order.join(',') });
