@@ -29,7 +29,7 @@
       "groupName": "github actions"
     },
     {
-      "description": "Tooling is covered by the test suite, let it land on its own",
+      "description": "One pull request for the tooling rather than one per package",
       "matchDepTypes": [
         "devDependencies"
       ],
@@ -37,7 +37,15 @@
         "minor",
         "patch"
       ],
-      "groupName": "dev dependencies",
+      "groupName": "dev dependencies"
+    },
+    {
+      "description": "Nothing here ships to production, and the tests run on every branch: a minor, a patch or a digest merges itself once they pass. A major never does.",
+      "matchUpdateTypes": [
+        "minor",
+        "patch",
+        "digest"
+      ],
       "automerge": true
     }
   ]
