@@ -3,10 +3,10 @@ import lastTracks from '../cron-scripts/last-tracks';
 import syncPlaylists from '../cron-scripts/sync-playlists';
 import removeDuplicates from '../cron-scripts/remove-duplicates';
 // Import types
-import { Crons } from './crons-conf';
+import { Cron } from './cron-conf';
 
 // Runs a single cron task, whatever triggers it
-export default async function runCron (cron: Crons[number]): Promise<void> {
+export default async function runCron (cron: Cron): Promise<void> {
   switch (cron.action) {
   case 'last-tracks':
     await lastTracks(cron.arguments);
