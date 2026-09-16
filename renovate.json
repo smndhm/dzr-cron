@@ -8,6 +8,7 @@
     "before 6am on monday"
   ],
   "minimumReleaseAge": "24 hours",
+  "rebaseWhen": "behind-base-branch",
   "semanticCommits": "enabled",
   "packageRules": [
     {
