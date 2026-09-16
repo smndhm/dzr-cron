@@ -5,6 +5,7 @@ import loadCrons, {
   CRONS_CONF_FILE,
   Crons,
 } from './crons-conf';
+import { Playlist } from '../types';
 
 const FIXTURE = '__mocks__/crons.conf.json';
 
@@ -16,14 +17,16 @@ const secrets = {
   OTHER_ACCESS_TOKEN: otherToken,
 };
 
+const syncArguments = [
+  { access_token: '$MY_ACCESS_TOKEN', playlistId: 1234567890 },
+  { access_token: '$OTHER_ACCESS_TOKEN', playlistId: 9876543210 },
+];
+
 const validConf = [
   {
     name: 'kids-playlist',
     action: 'sync-playlists',
-    arguments: [
-      { access_token: '$MY_ACCESS_TOKEN', playlistId: 1234567890 },
-      { access_token: '$OTHER_ACCESS_TOKEN', playlistId: 9876543210 },
-    ],
+    arguments: syncArguments,
   },
   {
     name: 'remove-duplicates',
@@ -50,8 +53,10 @@ describe('Crons configuration', () => {
 
       expect(crons.map(({ name }) => name))
         .toEqual(['kids-playlist', 'car-playlist', 'remove-duplicates']);
-      expect(crons[0].arguments[0].access_token).toBe(myToken);
-      expect(crons[0].arguments[1].access_token).toBe(otherToken);
+      const [kidsPlaylist] = crons;
+      const playlists = kidsPlaylist.arguments as Playlist[];
+      expect(playlists[0].access_token).toBe(myToken);
+      expect(playlists[1].access_token).toBe(otherToken);
     });
 
     test('Should default to the versioned configuration of the repository', () => {
@@ -116,7 +121,7 @@ describe('Crons configuration', () => {
     });
 
     test('Should reject sync-playlists without two playlists', () => {
-      expect(() => parseCrons([{ ...validConf[0], arguments: [validConf[0].arguments[0]] }]))
+      expect(() => parseCrons([{ ...validConf[0], arguments: [syncArguments[0]] }]))
         .toThrow('at least two playlists');
     });
 
@@ -138,7 +143,7 @@ describe('Crons configuration', () => {
   describe('resolveTokens', () => {
     test('Should fill in every placeholder, at any depth', () => {
       const [, , carPlaylist] = resolveTokens(validConf as unknown as Crons, secrets);
-      const cronArguments = carPlaylist.arguments as Record<string, never>;
+      const cronArguments = carPlaylist.arguments as Playlist & { playlists: Playlist[], nbTracks: number };
 
       expect(cronArguments.access_token).toBe(myToken);
       expect(cronArguments.playlists[0].access_token).toBe(otherToken);

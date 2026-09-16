@@ -4,12 +4,47 @@ import pino from 'pino';
 const TOKEN_KEY = 'access_token';
 const CENSOR = '[redacted]';
 
+// Censoring by key alone is one shape away from missing a token: a client that
+// keeps the request url would carry it outside any access_token key. Censor by
+// value too, for every token the run was given.
+const secrets = new Set<string>();
+
+// A Deezer token is around fifty characters. Anything short is a mistyped
+// secret, and censoring it by value would eat every log line that happens to
+// contain those few characters; the access_token key stays censored anyway.
+const MIN_SECRET_LENGTH = 8;
+
+export const registerSecrets = (tokens: string[]): void => {
+  tokens.forEach((token) => {
+    if (token && token.length >= MIN_SECRET_LENGTH) {
+      secrets.add(token);
+    }
+  });
+};
+
+export const forgetSecrets = (): void => {
+  secrets.clear();
+};
+
+const censorSecrets = (value: string): string => {
+  let censored = value;
+  secrets.forEach((secret) => {
+    if (censored.includes(secret)) {
+      censored = censored.split(secret).join(CENSOR);
+    }
+  });
+  return censored;
+};
+
 // The tokens show up at several depths: one per playlist in the cron
 // configuration, and one per failed request, where axios keeps it in
 // `err.config.params` because it travels as a query parameter. pino's `redact`
 // only takes fixed paths, so the whole payload is walked instead: the logs are
 // public on a public repository, and a missed path is a leaked token.
 const redactTokens = (value: unknown, seen: WeakSet<object> = new WeakSet()): unknown => {
+  if (typeof value === 'string') {
+    return censorSecrets(value);
+  }
   if (value === null || typeof value !== 'object') {
     return value;
   }
@@ -60,7 +95,9 @@ export default function setLogger (script: string, destination?: pino.Destinatio
         if (level >= 50) {
           errorCount++;
         }
-        return method.apply(this, args);
+        // pino types the arguments as a union of its overloads, which `apply`
+        // cannot narrow on its own
+        return method.apply(this, args as Parameters<pino.LogFn>);
       },
     },
     timestamp: () => `,"time":"${new Date(Date.now()).toISOString()}"`

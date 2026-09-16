@@ -4,28 +4,28 @@
   "description": "Deezer Cron Scripts",
   "packageManager": "pnpm@10.33.0",
   "scripts": {
-    "cron:once": "ts-node ./run-once.ts",
-    "cron:mask": "ts-node ./utils/mask-tokens.ts",
+    "cron:once": "tsx ./run-once.ts",
+    "cron:mask": "tsx ./utils/mask-tokens.ts",
+    "typecheck": "tsc --noEmit",
     "test": "vitest run --coverage",
-    "lint": "eslint \"**/*.ts\"",
-    "lint:fix": "eslint \"**/*.ts\" --fix"
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
   },
   "author": "smndhm",
   "license": "ISC",
   "dependencies": {
-    "axios": "^0.33.0",
-    "pino": "^7.8.0"
+    "pino": "10.3.1"
   },
   "devDependencies": {
-    "@typescript-eslint/eslint-plugin": "^5.13.0",
-    "@typescript-eslint/parser": "^5.13.0",
-    "@vitest/coverage-v8": "^3.2.4",
-    "eslint": "^8.9.0",
-    "nock": "^13.0.4",
-    "prettier": "2.5.1",
-    "ts-node": "^10.6.0",
-    "typescript": "^4.6.2",
-    "vitest": "^3.2.4"
+    "@eslint/js": "10.0.1",
+    "@vitest/coverage-v8": "5.0.1",
+    "eslint": "10.10.0",
+    "nock": "14.0.17",
+    "prettier": "3.9.6",
+    "tsx": "4.23.13",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.70.0",
+    "vitest": "5.0.1"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

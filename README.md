@@ -150,12 +150,14 @@ The workflows run on their own once the token secrets are set. `Run workflow` on
 
 `pnpm cron:once` is the command they run. It reads `crons.conf.json`, takes the tokens from the environment, and `CRON_NAMES` restricts it to a comma separated list of crons. Handy to check a token from a terminal without waiting for a schedule.
 
+The other scripts are `pnpm test`, `pnpm lint` and `pnpm typecheck`, which the `Tests` workflow runs on every push and pull request. Nothing is type checked at run time: the crons are executed by `tsx`, so a type error fails the build rather than a nightly run.
+
 ### Good to know
 
 - GitHub evaluates the workflow schedules in UTC and does not know about daylight saving, so the daily run drifts by an hour between summer and winter. It fires in the early morning, where it does not matter.
 - GitHub's scheduler is best effort and can be delayed by 10 to 30 minutes. Every script is idempotent, so a late or repeated run is harmless.
 - A scheduled workflow is automatically disabled after 60 days without activity in the repository.
-- Actions logs are public on a public repository, and a failed Deezer request carries the `access_token` in its axios error. GitHub masks the secrets it hands to the job, the run registers them again with `::add-mask::` for anything reaching the logs by another route, and the logger censors every `access_token` it is given, at any depth.
+- Actions logs are public on a public repository, and a failed Deezer request carries the `access_token` in a dozen places: the axios error keeps it under `params`, but also inside every url it held on to. Three layers answer for it: GitHub masks the secrets it hands to the job, the run registers them again with `::add-mask::`, and the logger censors them itself — by key, and by value wherever a token appears in a string, so a url leaks nothing either.
 - The logs also carry the playlist and track ids of what each run changed, which is public on a public repository.
 - The job turns red as soon as a script logs an error, so a revoked token does not fail silently day after day.
 
