@@ -6,6 +6,8 @@ import {
 } from '../utils/dzr';
 // Import logger
 import setLogger from '../utils/logger';
+// Import run summary
+import { reportChange } from '../utils/summary';
 const logger = setLogger('cron-sync-playlists');
 // Import types
 import { Playlist, AtLeastTwo, DeezerTrack } from '../types';
@@ -70,7 +72,7 @@ export default async function syncPlaylists(playlists: AtLeastTwo<Playlist>) {
       );
       if (tracksToAdd.length) {
         await postPlaylistTracks(access_token, playlistId, tracksToAdd);
-        logger.info({
+        reportChange(logger, {
           action: 'tracks-added',
           playlist: playlistId,
           tracks: tracksToAdd,
@@ -80,7 +82,7 @@ export default async function syncPlaylists(playlists: AtLeastTwo<Playlist>) {
       // UPDATE ORDER
       if (playlistTracksId.join(',') !== playlistsTracks.join(',')) {
         await postPlaylistTracksOrder(access_token, playlistId, playlistsTracks);
-        logger.info({
+        reportChange(logger, {
           action: 'tracks-ordered',
           playlist: playlistId
         });

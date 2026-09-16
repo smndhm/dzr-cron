@@ -5,6 +5,8 @@ import {
 } from '../utils/dzr';
 // Import logger
 import setLogger from '../utils/logger';
+// Import run summary
+import { reportChange } from '../utils/summary';
 const logger = setLogger('remove-duplicates');
 // Import types
 import { Playlist, DeezerTrack } from '../types';
@@ -54,7 +56,7 @@ export default async function removeDuplicates({ playlistId, access_token }: Pla
       if (tracksToRemove.size) {
         const removed = Array.from(tracksToRemove);
         await deletePlaylistTracks(access_token, playlistId, removed);
-        logger.info({
+        reportChange(logger, {
           action: 'tracks-removed',
           playlist: playlistId,
           tracks: removed,
