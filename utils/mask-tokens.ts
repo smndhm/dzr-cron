@@ -1,5 +1,5 @@
 // Crons parameters
-import loadCrons, { Crons } from './crons-conf';
+import loadCrons, { Crons, CRONS_CONF_FILE } from './crons-conf';
 
 // Walks the configuration and collects every access_token it holds
 export const collectTokens = (crons: Crons): string[] => {
@@ -26,13 +26,13 @@ export const collectTokens = (crons: Crons): string[] => {
   return Array.from(tokens);
 };
 
-// GitHub only masks the secret as a whole, not the tokens nested in it, so each
-// one is registered before anything else runs.
-export default function maskTokens (env: NodeJS.ProcessEnv = process.env): string[] {
-  return collectTokens(loadCrons(env)).map((token) => `::add-mask::${token}`);
+// GitHub already masks each secret it hands to the job, so this is a second
+// layer, covering a token that reaches the run by any other route.
+export default function maskTokens (env: NodeJS.ProcessEnv = process.env, file: string = CRONS_CONF_FILE): string[] {
+  return collectTokens(loadCrons(env, file)).map((token) => `::add-mask::${token}`);
 }
 
-// Entry point, `npm run cron:mask`
+// Entry point, `pnpm cron:mask`
 if (require.main === module) {
   maskTokens().forEach((command) => console.log(command));
 }

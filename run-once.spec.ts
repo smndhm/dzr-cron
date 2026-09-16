@@ -1,5 +1,4 @@
 import runOnce, { CRON_NAMES_ENV } from './run-once';
-import { CRONS_CONF_ENV } from './utils/crons-conf';
 import setLogger from './utils/logger';
 import lastTracks from './cron-scripts/last-tracks';
 import syncPlaylists from './cron-scripts/sync-playlists';
@@ -13,46 +12,39 @@ const mockLastTracks = vi.mocked(lastTracks);
 const mockSyncPlaylists = vi.mocked(syncPlaylists);
 const mockRemoveDuplicates = vi.mocked(removeDuplicates);
 
-const accessToken = 'frblublublublublublublublublublublublublublublublu';
-const playlist = { access_token: accessToken, playlistId: 1234567890 };
-const otherPlaylist = { access_token: accessToken, playlistId: 9876543210 };
+const FIXTURE = '__mocks__/crons.conf.json';
+const EMPTY_FIXTURE = '__mocks__/crons.conf.empty.json';
 
-const conf = [
-  {
-    name: 'kids-playlist',
-    action: 'sync-playlists',
-    arguments: [playlist, otherPlaylist],
-  },
-  {
-    name: 'car-playlist',
-    action: 'last-tracks',
-    arguments: { ...playlist, playlists: [otherPlaylist] },
-  },
-  {
-    name: 'remove-duplicates',
-    action: 'remove-duplicates',
-    arguments: playlist,
-  },
-];
+const myToken = 'frblublublublublublublublublublublublublublublublu';
+const otherToken = 'frblablablablablablablablablablablablablablablabla';
 
 const env = (names?: string) => ({
-  [CRONS_CONF_ENV]: JSON.stringify(conf),
+  MY_ACCESS_TOKEN: myToken,
+  OTHER_ACCESS_TOKEN: otherToken,
   ...(names === undefined ? {} : { [CRON_NAMES_ENV]: names }),
 });
 
 describe('Run once', () => {
   test('Should only run the named cron', async () => {
-    const errors = await runOnce(env('kids-playlist'));
+    const errors = await runOnce(env('kids-playlist'), FIXTURE);
 
     expect(mockSyncPlaylists).toBeCalledTimes(1);
-    expect(mockSyncPlaylists).toBeCalledWith(conf[0].arguments);
     expect(mockLastTracks).not.toBeCalled();
     expect(mockRemoveDuplicates).not.toBeCalled();
     expect(errors).toBe(0);
   });
 
+  test('Should hand the script its resolved tokens', async () => {
+    await runOnce(env('kids-playlist'), FIXTURE);
+
+    expect(mockSyncPlaylists).toBeCalledWith([
+      { access_token: myToken, playlistId: 1234567890 },
+      { access_token: otherToken, playlistId: 9876543210 },
+    ]);
+  });
+
   test('Should run every named cron', async () => {
-    await runOnce(env('car-playlist,remove-duplicates'));
+    await runOnce(env('car-playlist,remove-duplicates'), FIXTURE);
 
     expect(mockLastTracks).toBeCalledTimes(1);
     expect(mockRemoveDuplicates).toBeCalledTimes(1);
@@ -60,14 +52,14 @@ describe('Run once', () => {
   });
 
   test('Should ignore the spacing between the names', async () => {
-    await runOnce(env(' car-playlist ,  remove-duplicates '));
+    await runOnce(env(' car-playlist ,  remove-duplicates '), FIXTURE);
 
     expect(mockLastTracks).toBeCalledTimes(1);
     expect(mockRemoveDuplicates).toBeCalledTimes(1);
   });
 
   test('Should run every cron when no name is given', async () => {
-    await runOnce(env());
+    await runOnce(env(), FIXTURE);
 
     expect(mockSyncPlaylists).toBeCalledTimes(1);
     expect(mockLastTracks).toBeCalledTimes(1);
@@ -75,8 +67,14 @@ describe('Run once', () => {
   });
 
   test('Should reject an unknown name rather than run nothing', async () => {
-    // A workflow and the configuration disagreeing must not look like a healthy run
-    await expect(runOnce(env('kid-playlist'))).rejects.toThrow('Unknown cron name: kid-playlist');
+    await expect(runOnce(env('kid-playlist'), FIXTURE))
+      .rejects.toThrow('Unknown cron name: kid-playlist');
+    expect(mockSyncPlaylists).not.toBeCalled();
+  });
+
+  test('Should reject a missing secret before calling Deezer', async () => {
+    await expect(runOnce({ MY_ACCESS_TOKEN: myToken }, FIXTURE))
+      .rejects.toThrow('Missing secret: OTHER_ACCESS_TOKEN');
     expect(mockSyncPlaylists).not.toBeCalled();
   });
 
@@ -85,20 +83,19 @@ describe('Run once', () => {
       setLogger('sync-playlists').error('API Error Response');
     });
 
-    const errors = await runOnce(env('kids-playlist'));
+    const errors = await runOnce(env('kids-playlist'), FIXTURE);
 
     expect(errors).toBe(1);
   });
 
   test('Should not fail when nothing is configured', async () => {
-    const errors = await runOnce({ [CRONS_CONF_ENV]: '[]' });
+    const errors = await runOnce(env(), EMPTY_FIXTURE);
 
     expect(errors).toBe(0);
     expect(mockSyncPlaylists).not.toBeCalled();
   });
 
-  test('Should reject an invalid configuration', async () => {
-    await expect(runOnce({ [CRONS_CONF_ENV]: '{nope' })).rejects.toThrow('not valid JSON');
-    expect(mockSyncPlaylists).not.toBeCalled();
+  test('Should reject a missing configuration file', async () => {
+    await expect(runOnce(env(), 'nope.json')).rejects.toThrow('nope.json is missing');
   });
 });
