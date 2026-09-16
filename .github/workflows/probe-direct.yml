@@ -1,8 +1,9 @@
-# Throwaway. No schedule event has ever fired on this repository, and every
-# cron here reaches its steps through a reusable workflow. This one does not:
-# if it runs and the crons do not, the indirection is the cause. Every five
-# minutes, which is the shortest interval GitHub accepts, to get an answer in
-# minutes rather than hours. Delete once the question is settled.
+# Throwaway, and the last one standing. GitHub has never run a scheduled
+# workflow in this repository: not the five crons, not this, not the reusable
+# twin it was paired with, which is why that twin is gone — both were equally
+# silent, so the indirection was never the cause. This one stays as a canary.
+# It prints the date every five minutes and costs nothing, because it does not
+# run. The day it does, GitHub's scheduler is back and trigger/ can go.
 name: Probe direct
 
 on:
