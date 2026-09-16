@@ -4,43 +4,10 @@
     "config:recommended"
   ],
   "minimumReleaseAge": "24 hours",
-  "rebaseWhen": "behind-base-branch",
   "semanticCommits": "enabled",
   "packageRules": [
     {
-      "description": "typescript-eslint does not support TypeScript 7 yet, see typescript-eslint/typescript-eslint#10940",
-      "matchPackageNames": [
-        "typescript"
-      ],
-      "allowedVersions": "<7"
-    },
-    {
-      "description": "@types/node follows the Node version the workflows run, currently 22",
-      "matchPackageNames": [
-        "@types/node"
-      ],
-      "allowedVersions": "<23"
-    },
-    {
-      "description": "The workflows are how this repository runs: keep their actions current",
-      "matchManagers": [
-        "github-actions"
-      ],
-      "groupName": "github actions"
-    },
-    {
-      "description": "One pull request for the tooling rather than one per package",
-      "matchDepTypes": [
-        "devDependencies"
-      ],
-      "matchUpdateTypes": [
-        "minor",
-        "patch"
-      ],
-      "groupName": "dev dependencies"
-    },
-    {
-      "description": "Nothing here ships to production, and the tests run on every branch: a minor, a patch or a digest merges itself once they pass. A major never does.",
+      "description": "Nothing here ships to production and the tests run on every branch: a minor, a patch or a digest merges itself once they pass. A major never does, and an unwanted one is refused by closing its pull request once.",
       "matchUpdateTypes": [
         "minor",
         "patch",
