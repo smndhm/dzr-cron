@@ -1,6 +1,9 @@
 {
   "compilerOptions": {
     "resolveJsonModule": true,
-    "esModuleInterop": true
+    "esModuleInterop": true,
+    "types": [
+      "vitest/globals"
+    ]
   }
 }

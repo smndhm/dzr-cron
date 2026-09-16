@@ -1,3 +1,5 @@
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
 // Import types
 import {
   LastTracksCron,
@@ -7,36 +9,39 @@ import {
 
 export type Crons = (LastTracksCron|SyncPlaylistCron|RemoveDuplicatesCron)[];
 
-// Environment variable holding the whole configuration as JSON
-export const CRONS_CONF_ENV = 'CRONS_CONF';
+// Versioned configuration: it holds no token, only the name of the secret
+// carrying each one.
+export const CRONS_CONF_FILE = 'crons.conf.json';
+
+// An access_token is always "$NAME", never a token. This file is public, so a
+// literal value has to fail loudly instead of being quietly committed.
+const TOKEN_PLACEHOLDER = /^\$[A-Z][A-Z0-9_]*$/;
 
 const ACTIONS = ['last-tracks', 'sync-playlists', 'remove-duplicates'];
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
-// A playlist is an access_token / playlistId pair
+// A playlist is an access_token placeholder / playlistId pair
 const isPlaylist = (value: unknown): boolean =>
   isRecord(value) &&
   typeof value.access_token === 'string' &&
-  value.access_token.length > 0 &&
+  TOKEN_PLACEHOLDER.test(value.access_token) &&
   typeof value.playlistId === 'number';
 
-// Error messages never include the configuration values themselves: they end up
-// in public GitHub Actions logs and would leak the Deezer access tokens.
 const assertArguments = (action: string, cronArguments: unknown, label: string): void => {
   if (action === 'sync-playlists') {
     if (!Array.isArray(cronArguments) || cronArguments.length < 2) {
       throw new Error(`${label}: "sync-playlists" needs an array of at least two playlists.`);
     }
     if (!cronArguments.every(isPlaylist)) {
-      throw new Error(`${label}: every playlist needs an "access_token" string and a "playlistId" number.`);
+      throw new Error(`${label}: every playlist needs an "access_token" placeholder such as "$MY_ACCESS_TOKEN" and a "playlistId" number.`);
     }
     return;
   }
 
   if (!isPlaylist(cronArguments)) {
-    throw new Error(`${label}: "arguments" needs an "access_token" string and a "playlistId" number.`);
+    throw new Error(`${label}: "arguments" needs an "access_token" placeholder such as "$MY_ACCESS_TOKEN" and a "playlistId" number.`);
   }
 
   if (action === 'last-tracks') {
@@ -53,16 +58,16 @@ const assertArguments = (action: string, cronArguments: unknown, label: string):
   }
 };
 
-// Validates an unknown value coming from the environment
+// Validates an unknown value read from the configuration file
 export const parseCrons = (value: unknown): Crons => {
   if (!Array.isArray(value)) {
-    throw new Error(`${CRONS_CONF_ENV} must be a JSON array of crons.`);
+    throw new Error(`${CRONS_CONF_FILE} must be a JSON array of crons.`);
   }
 
   const names = new Set<string>();
 
   value.forEach((cron, index) => {
-    const label = `${CRONS_CONF_ENV} cron #${index}`;
+    const label = `${CRONS_CONF_FILE} cron #${index}`;
     if (!isRecord(cron)) {
       throw new Error(`${label}: must be an object.`);
     }
@@ -81,6 +86,52 @@ export const parseCrons = (value: unknown): Crons => {
 
   return value as Crons;
 };
+
+// Swaps each "$NAME" placeholder for the secret of that name. Never names the
+// value in an error, only the placeholder.
+export const resolveTokens = (crons: Crons, env: NodeJS.ProcessEnv): Crons => {
+  const missing = new Set<string>();
+
+  const fill = (value: unknown): unknown => {
+    if (Array.isArray(value)) {
+      return value.map(fill);
+    }
+    if (!isRecord(value)) {
+      return value;
+    }
+    return Object.fromEntries(Object.entries(value).map(([key, entry]) => {
+      if (key !== 'access_token' || typeof entry !== 'string') {
+        return [key, fill(entry)];
+      }
+      const name = entry.slice(1);
+      const token = env[name];
+      if (!token) {
+        missing.add(name);
+      }
+      return [key, token ?? entry];
+    }));
+  };
+
+  const resolved = fill(crons) as Crons;
+
+  if (missing.size > 0) {
+    throw new Error(`Missing secret: ${Array.from(missing).join(', ')}.`);
+  }
+
+  return resolved;
+};
+
+// Reads the versioned configuration and fills in the tokens from the secrets
+export default function loadCrons (env: NodeJS.ProcessEnv = process.env, file: string = CRONS_CONF_FILE): Crons {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(readFileSync(resolve(file), 'utf8'));
+  } catch (e) {
+    throw new Error(`${file} is missing or is not valid JSON.`);
+  }
+
+  return resolveTokens(parseCrons(parsed), env);
+}
 
 // Keeps the crons named in `names`, in the configuration order. An unknown name
 // throws rather than running nothing: it means a workflow and the configuration
@@ -103,21 +154,3 @@ export const selectCrons = (crons: Crons, names: string): Crons => {
 
   return crons.filter(({ name }) => wanted.includes(name));
 };
-
-// Reads the configuration from the environment: the tokens it holds cannot live
-// in a committed file, so it comes from a GitHub secret.
-export default function loadCrons (env: NodeJS.ProcessEnv = process.env): Crons {
-  const raw = env[CRONS_CONF_ENV];
-  if (!raw || raw.trim().length === 0) {
-    throw new Error(`${CRONS_CONF_ENV} is not set.`);
-  }
-
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch (e) {
-    throw new Error(`${CRONS_CONF_ENV} is not valid JSON.`);
-  }
-
-  return parseCrons(parsed);
-}
