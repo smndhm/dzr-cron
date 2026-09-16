@@ -30,26 +30,35 @@ The file holds no token. Wherever one is needed it names the secret carrying it,
 
 Each name is a repository secret, added under `Settings` > `Secrets and variables` > `Actions` > `New repository secret`, and passed to the job by `crons.yml`. Adding a token means adding a secret and the matching line in that workflow. A placeholder with no secret behind it fails the run, naming the secret and never its value.
 
-### Schedule them in a workflow
+### Give each cron its own workflow
 
-Each cadence is a workflow of its own, naming the crons it runs. `crons-hourly.yml` and `crons-daily.yml` are there to be edited; `crons.yml` holds the steps they share and never runs on its own.
+One workflow per cron, named after it, carrying its schedule: `cron-family-playlist.yml`, `cron-lucas.yml`, and so on. `crons.yml` holds the steps they share and never runs on its own.
 
 ```yaml
+name: Cron car-playlist
+
 on:
   schedule:
-    - cron: '17 3 * * *'
+    - cron: '17 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: dzr-crons
+  cancel-in-progress: false
 
 jobs:
   run:
     uses: ./.github/workflows/crons.yml
     with:
-      names: car-playlist,remove-duplicates
+      names: car-playlist
     secrets: inherit
 ```
 
-Adding a new rhythm means adding one such file. A name that no cron in `crons.conf.json` answers to fails the run, rather than quietly doing nothing.
+One file per cron rather than one per cadence, because the Actions tab then reads as a dashboard: each cron has its own name, its own green or red history, and its own button to run it by hand. Two crons can share a script — `family-playlist` and `car-playlist` are both `last-tracks` — and grouping them in one job makes their log lines indistinguishable.
 
-If every cron shares the same cadence, drop the `names` line and keep a single workflow: with no name given it runs them all, and there is no list to keep in sync with the secret.
+A failing cron only reddens its own workflow. The shared concurrency group still keeps them from overlapping, since several read a playlist another one writes, and their minutes are staggered so they do not queue behind one another.
+
+Adding a cron means adding an entry in `crons.conf.json` and one such file. A name that no cron answers to fails the run, rather than quietly doing nothing.
 
 ## Scripts
 

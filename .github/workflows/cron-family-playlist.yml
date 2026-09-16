@@ -1,0 +1,20 @@
+name: Cron family-playlist
+
+on:
+  # Every hour. Minutes are staggered across the crons so they do not queue
+  # behind one another, and so a busy slot on GitHub's side does not take them all.
+  schedule:
+    - cron: '7 * * * *'
+  workflow_dispatch:
+
+# Several crons read a playlist another one writes, so they never overlap
+concurrency:
+  group: dzr-crons
+  cancel-in-progress: false
+
+jobs:
+  run:
+    uses: ./.github/workflows/crons.yml
+    with:
+      names: family-playlist
+    secrets: inherit

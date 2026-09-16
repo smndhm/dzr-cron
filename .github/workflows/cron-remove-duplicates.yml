@@ -1,0 +1,20 @@
+name: Cron remove-duplicates
+
+on:
+  # Once a day, in the middle of the night: 23:30 UTC is 00:30 or 01:30 in
+  # Paris depending on daylight saving, which no listener will notice.
+  schedule:
+    - cron: '30 23 * * *'
+  workflow_dispatch:
+
+# Several crons read a playlist another one writes, so they never overlap
+concurrency:
+  group: dzr-crons
+  cancel-in-progress: false
+
+jobs:
+  run:
+    uses: ./.github/workflows/crons.yml
+    with:
+      names: remove-duplicates
+    secrets: inherit
