@@ -170,4 +170,3 @@ The other scripts are `pnpm test`, `pnpm lint` and `pnpm typecheck`, which the `
 - [x] Tests
 - [x] Second script: sync different accounts playlists
 - [x] Cron script instead of using PM2 or others
-- [x] Create page to generate an access_token
