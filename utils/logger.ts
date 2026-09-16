@@ -9,9 +9,14 @@ const CENSOR = '[redacted]';
 // value too, for every token the run was given.
 const secrets = new Set<string>();
 
+// A Deezer token is around fifty characters. Anything short is a mistyped
+// secret, and censoring it by value would eat every log line that happens to
+// contain those few characters; the access_token key stays censored anyway.
+const MIN_SECRET_LENGTH = 8;
+
 export const registerSecrets = (tokens: string[]): void => {
   tokens.forEach((token) => {
-    if (token) {
+    if (token && token.length >= MIN_SECRET_LENGTH) {
       secrets.add(token);
     }
   });

@@ -126,6 +126,16 @@ describe('Logger', () => {
     expect(line).toContain('[redacted]');
   });
 
+  test('Should not censor a token too short to be one', () => {
+    // Registering "a" would censor the letter a in every line
+    const { lines, destination } = collect();
+    registerSecrets(['a']);
+
+    setLogger('run-once', destination).info({ cron: 'thibaut' });
+
+    expect(lines[0].cron).toBe('thibaut');
+  });
+
   test('Should forget the tokens between runs', () => {
     registerSecrets([accessToken]);
     forgetSecrets();
