@@ -4,8 +4,9 @@ import pino from 'pino';
 const TOKEN_KEY = 'access_token';
 const CENSOR = '[redacted]';
 
-// Censoring by key is not enough: a failed request carries the token inside
-// urls, so also by value, for every token the run was given.
+// Censoring by key alone is one shape away from missing a token: a client that
+// keeps the request url would carry it outside any access_token key. Censor by
+// value too, for every token the run was given.
 const secrets = new Set<string>();
 
 export const registerSecrets = (tokens: string[]): void => {
@@ -59,14 +60,7 @@ const redactTokens = (value: unknown, seen: WeakSet<object> = new WeakSet()): un
     redacted.message = value.message;
     redacted.stack = value.stack;
   }
-  // An axios error carries the whole node request, which repeats the url in a
-  // dozen buffers and options. Noise, and one more place for a token to sit.
-  const isAxiosError = (value as Record<string, unknown>).isAxiosError === true;
-
   Object.entries(value).forEach(([key, entry]) => {
-    if (isAxiosError && key === 'request') {
-      return;
-    }
     redacted[key] = key === TOKEN_KEY ? CENSOR : redactTokens(entry, seen);
   });
 

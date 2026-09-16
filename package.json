@@ -14,7 +14,6 @@
   "author": "smndhm",
   "license": "ISC",
   "dependencies": {
-    "axios": "^1.20.0",
     "pino": "^10.3.1"
   },
   "devDependencies": {

@@ -30,9 +30,9 @@ describe('Logger', () => {
     expect(lines[0].msg).toBe('Script started');
   });
 
-  test('Should redact the access token of a failed request', () => {
+  test('Should redact the access token carried by an error', () => {
     const { lines, destination } = collect();
-    // Shape of an axios error: the token travels as a query parameter
+    // The token travels as a query parameter, so a client may keep it
     const error = Object.assign(new Error('Request failed with status code 403'), {
       config: {
         method: 'get',
@@ -96,8 +96,7 @@ describe('Logger', () => {
   });
 
   test('Should redact the token of a request that really failed', async () => {
-    // The synthetic error above mirrors axios, this one comes from axios itself,
-    // which repeats the token inside the urls it kept
+    // The synthetic error above is shaped by hand, this one is the real thing
     const { lines, destination } = collect();
     registerSecrets([accessToken]);
     nock('https://api.deezer.com').get(/\/playlist\/\d+\/tracks/).times(1).reply(403, { error: 'nope' });
