@@ -1,0 +1,18 @@
+# Throwaway. No schedule event has ever fired on this repository, and every
+# cron here reaches its steps through a reusable workflow. This one does not:
+# if it runs and the crons do not, the indirection is the cause. Every five
+# minutes, which is the shortest interval GitHub accepts, to get an answer in
+# minutes rather than hours. Delete once the question is settled.
+name: Probe direct
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - run: date -u '+direct probe ran at %H:%M UTC'
