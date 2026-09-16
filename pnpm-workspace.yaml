@@ -1,0 +1,5 @@
+# pnpm 12 no longer reads settings from the "pnpm" field of package.json, and
+# onlyBuiltDependencies became allowBuilds. esbuild is what vitest builds on,
+# and it needs its install script to put its binary in place.
+allowBuilds:
+  esbuild: true
