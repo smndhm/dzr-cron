@@ -147,7 +147,7 @@ Must be an objects with the following properties:
 
 ## Running
 
-The workflows run on their own once the token secrets are set. `Run workflow` on the Actions tab runs a cadence by hand, outside of its schedule.
+The workflows are asked to run by a Cloudflare Worker, in `trigger`, because GitHub's own scheduler has never run a single one of them. Their `schedule` lines are still there, doing nothing, for the day it comes back. See [trigger/README.md](trigger/README.md). `Run workflow` on the Actions tab runs a cron by hand, outside of any schedule.
 
 `pnpm cron:once` is the command they run. It reads the cron from `CRON_NAME`, `CRON_ACTION` and `CRON_ARGUMENTS`, and the tokens from the environment beside them. Handy to check a token from a terminal without waiting for a schedule.
 
