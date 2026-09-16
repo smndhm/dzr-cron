@@ -142,7 +142,7 @@ Must be an objects with the following properties:
 
 The workflows run on their own once the `CRONS_CONF` secret is set. `Run workflow` on the Actions tab runs a cadence by hand, outside of its schedule.
 
-`npm run cron:once` is the command they run. It reads the configuration from the `CRONS_CONF` environment variable, and `CRON_NAMES` restricts it to a comma separated list of crons. Handy to check a token from a terminal without waiting for a schedule.
+`pnpm cron:once` is the command they run. It reads the configuration from the `CRONS_CONF` environment variable, and `CRON_NAMES` restricts it to a comma separated list of crons. Handy to check a token from a terminal without waiting for a schedule.
 
 ### Good to know
 
