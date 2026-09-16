@@ -4,7 +4,8 @@ export interface Playlist {
 }
 
 interface Cron {
-    refreshInterval: string,
+    // Identifies the cron: this is how a workflow names the crons it runs
+    name: string,
 }
 
 export interface LastTracksCron extends Cron {

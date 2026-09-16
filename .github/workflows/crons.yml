@@ -1,0 +1,40 @@
+# Steps shared by every schedule. The cadences live in the crons-*.yml files,
+# this one never runs on its own.
+name: Deezer crons
+
+on:
+  workflow_call:
+    inputs:
+      names:
+        description: 'Comma separated names of the crons to run, as set in the configuration. Empty runs them all.'
+        required: false
+        default: ''
+        type: string
+
+jobs:
+  run-crons:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install modules
+        run: npm ci
+
+      # GitHub only masks the secret as a whole: the tokens nested in it have to
+      # be registered one by one, before anything can log them.
+      - name: Mask Deezer access tokens
+        run: npm run --silent cron:mask
+        env:
+          CRONS_CONF: ${{ secrets.CRONS_CONF }}
+
+      - name: Run crons
+        run: npm run cron:once
+        env:
+          CRONS_CONF: ${{ secrets.CRONS_CONF }}
+          CRON_NAMES: ${{ inputs.names }}

@@ -3,7 +3,8 @@
   "version": "3.0.2",
   "description": "Deezer Cron Scripts",
   "scripts": {
-    "start": "npx ts-node ./index.ts",
+    "cron:once": "npx ts-node ./run-once.ts",
+    "cron:mask": "npx ts-node ./utils/mask-tokens.ts",
     "test": "jest --coverage",
     "lint": "eslint \"**/*.ts\"",
     "lint:fix": "eslint \"**/*.ts\" --fix"
@@ -12,7 +13,6 @@
   "license": "ISC",
   "dependencies": {
     "axios": "^0.21.4",
-    "cron": "^1.8.2",
     "pino": "^7.8.0"
   },
   "devDependencies": {
