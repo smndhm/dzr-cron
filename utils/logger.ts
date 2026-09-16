@@ -92,9 +92,11 @@ export default function setLogger (script: string, output: LogOutput = toStdout)
     if (extra !== undefined) {
       parts.push(render(extra));
     }
+    // No timestamp: GitHub stamps every line of a job's log, in UTC, and a
+    // second one beside it said the same thing twice.
     // Censoring the rendered line, so nothing escapes through a shape we did
     // not anticipate
-    output(censorSecrets(`${new Date().toISOString()} ${level} [${script}] ${parts.join(' ')}`));
+    output(censorSecrets(`${level} [${script}] ${parts.join(' ')}`));
   };
 
   return {

@@ -25,8 +25,8 @@ describe('Logger', () => {
     const { lines, output } = collect();
     setLogger('my-script', output).info('Script started');
 
-    expect(lines[0]).toContain('INFO [my-script] Script started');
-    expect(lines[0]).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    // No timestamp of our own: GitHub already stamps every line, in UTC
+    expect(lines[0]).toBe('INFO [my-script] Script started');
   });
 
   test('Should keep the error message, stack and cause', () => {
