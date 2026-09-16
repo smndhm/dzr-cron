@@ -2,8 +2,10 @@
 import runCron from './utils/run-cron';
 // Crons parameters
 import loadCrons, { selectCrons, CRONS_CONF_FILE } from './utils/crons-conf';
+// Import token collection
+import { collectTokens } from './utils/mask-tokens';
 // Import logger
-import setLogger, { getErrorCount, resetErrorCount } from './utils/logger';
+import setLogger, { getErrorCount, resetErrorCount, registerSecrets } from './utils/logger';
 
 const logger = setLogger('run-once');
 
@@ -16,7 +18,11 @@ export const CRON_NAMES_ENV = 'CRON_NAMES';
 export default async function runOnce (env: NodeJS.ProcessEnv = process.env, file: string = CRONS_CONF_FILE): Promise<number> {
   resetErrorCount();
 
-  const crons = selectCrons(loadCrons(env, file), env[CRON_NAMES_ENV] ?? '');
+  const allCrons = loadCrons(env, file);
+  // Before anything can log, so a failed request cannot print a token
+  registerSecrets(collectTokens(allCrons));
+
+  const crons = selectCrons(allCrons, env[CRON_NAMES_ENV] ?? '');
 
   if (crons.length === 0) {
     // An empty configuration is deliberate, unlike a missing one, which throws

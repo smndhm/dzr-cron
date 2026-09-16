@@ -4,12 +4,41 @@ import pino from 'pino';
 const TOKEN_KEY = 'access_token';
 const CENSOR = '[redacted]';
 
+// Censoring by key is not enough: a failed request carries the token inside
+// urls, so also by value, for every token the run was given.
+const secrets = new Set<string>();
+
+export const registerSecrets = (tokens: string[]): void => {
+  tokens.forEach((token) => {
+    if (token) {
+      secrets.add(token);
+    }
+  });
+};
+
+export const forgetSecrets = (): void => {
+  secrets.clear();
+};
+
+const censorSecrets = (value: string): string => {
+  let censored = value;
+  secrets.forEach((secret) => {
+    if (censored.includes(secret)) {
+      censored = censored.split(secret).join(CENSOR);
+    }
+  });
+  return censored;
+};
+
 // The tokens show up at several depths: one per playlist in the cron
 // configuration, and one per failed request, where axios keeps it in
 // `err.config.params` because it travels as a query parameter. pino's `redact`
 // only takes fixed paths, so the whole payload is walked instead: the logs are
 // public on a public repository, and a missed path is a leaked token.
 const redactTokens = (value: unknown, seen: WeakSet<object> = new WeakSet()): unknown => {
+  if (typeof value === 'string') {
+    return censorSecrets(value);
+  }
   if (value === null || typeof value !== 'object') {
     return value;
   }
@@ -30,7 +59,14 @@ const redactTokens = (value: unknown, seen: WeakSet<object> = new WeakSet()): un
     redacted.message = value.message;
     redacted.stack = value.stack;
   }
+  // An axios error carries the whole node request, which repeats the url in a
+  // dozen buffers and options. Noise, and one more place for a token to sit.
+  const isAxiosError = (value as Record<string, unknown>).isAxiosError === true;
+
   Object.entries(value).forEach(([key, entry]) => {
+    if (isAxiosError && key === 'request') {
+      return;
+    }
     redacted[key] = key === TOKEN_KEY ? CENSOR : redactTokens(entry, seen);
   });
 
@@ -60,7 +96,9 @@ export default function setLogger (script: string, destination?: pino.Destinatio
         if (level >= 50) {
           errorCount++;
         }
-        return method.apply(this, args);
+        // pino types the arguments as a union of its overloads, which `apply`
+        // cannot narrow on its own
+        return method.apply(this, args as Parameters<pino.LogFn>);
       },
     },
     timestamp: () => `,"time":"${new Date(Date.now()).toISOString()}"`
