@@ -4,11 +4,11 @@ Scripts to update my playlists
 
 ## Setup
 
-The scripts run on GitHub Actions, scheduled by the workflows in `.github/workflows`. There is nothing to install: the only setup is the configuration, and it lives in a repository secret because it holds Deezer access tokens.
+The scripts run on GitHub Actions, scheduled by the workflows in `.github/workflows`. There is nothing to install. The setup is in two parts: the crons themselves, versioned in `crons.conf.json`, and the Deezer access tokens, which are secrets.
 
-### Configure the crons in the `CRONS_CONF` secret
+### Configure the crons in `crons.conf.json`
 
-`Settings` > `Secrets and variables` > `Actions` > `New repository secret`, named `CRONS_CONF`, holding a JSON array of crons. Each cron has the following structure:
+A JSON array of crons, committed with the code so its history is readable. Each cron has the following structure:
 
 ```json
 {
@@ -22,7 +22,13 @@ The scripts run on GitHub Actions, scheduled by the workflows in `.github/workfl
 - `action` is the script to launch, can be "last-tracks", "sync-playlists" or "remove-duplicates".
 - `arguments` are the arguments passed to the script, and depend on the action. See below.
 
-The whole secret is validated before any call to Deezer: a missing or malformed field fails the run immediately, and the error never contains a token.
+The file is validated before any call to Deezer: a missing or malformed field fails the run immediately.
+
+### Put the tokens in secrets
+
+The file holds no token. Wherever one is needed it names the secret carrying it, as `$MY_ACCESS_TOKEN`, and the run fills it in. A literal token is rejected by the validation, so one cannot be committed here by mistake.
+
+Each name is a repository secret, added under `Settings` > `Secrets and variables` > `Actions` > `New repository secret`, and passed to the job by `crons.yml`. Adding a token means adding a secret and the matching line in that workflow. A placeholder with no secret behind it fails the run, naming the secret and never its value.
 
 ### Schedule them in a workflow
 
@@ -41,7 +47,7 @@ jobs:
     secrets: inherit
 ```
 
-Adding a new rhythm means adding one such file. A name that no cron in the secret answers to fails the run, rather than quietly doing nothing.
+Adding a new rhythm means adding one such file. A name that no cron in `crons.conf.json` answers to fails the run, rather than quietly doing nothing.
 
 If every cron shares the same cadence, drop the `names` line and keep a single workflow: with no name given it runs them all, and there is no list to keep in sync with the secret.
 
@@ -53,18 +59,18 @@ Because it's better to have an offline playlist for the car. Because my favorite
 
 Because my kids wants to have their tracks during "apéro", I updated this cron.
 
-#### Structure in the `CRONS_CONF` secret
+#### Structure in `crons.conf.json`
 
 ```json
 {
   "name": "car-playlist",
   "action": "last-tracks",
   "arguments": {
-    "access_token": "frblublublublublublublublublublublublublublublublu",
+    "access_token": "$MY_ACCESS_TOKEN",
     "playlistId": 1234567890,
     "playlists": [
-      { "access_token": "frblublublublublublublublublublublublublublublublu", "playlistId": 1111111111 },
-      { "access_token": "frblablablablablablablablablablablablablablablabla", "playlistId": 9876543210 }
+      { "access_token": "$MY_ACCESS_TOKEN", "playlistId": 1111111111 },
+      { "access_token": "$OTHER_ACCESS_TOKEN", "playlistId": 9876543210 }
     ],
     "nbTracks": 10,
     "noExplicitLyrics": true
@@ -91,15 +97,15 @@ So I set the playlist public, mom added the playlist to its favorites, Lucas lis
 I didn't set the playlist collaborative, mom created a new playlist, added tracks, Lucas went back to dad... _"What! You don't have my last tracks?"_  
 Ok, new cron.
 
-#### Structure in the `CRONS_CONF` secret
+#### Structure in `crons.conf.json`
 
 ```json
 {
   "name": "kids-playlist",
   "action": "sync-playlists",
   "arguments": [
-    { "access_token": "frblublublublublublublublublublublublublublublublu", "playlistId": 1234567890 },
-    { "access_token": "frblablablablablablablablablablablablablablablabla", "playlistId": 9876543210 }
+    { "access_token": "$MY_ACCESS_TOKEN", "playlistId": 1234567890 },
+    { "access_token": "$OTHER_ACCESS_TOKEN", "playlistId": 9876543210 }
   ]
 }
 ```
@@ -117,14 +123,14 @@ Must be an array of objects with the following properties:
 I have a lot of titles in my favorite playlist and I realized that there could be the same track several times, this is often due to a track present in an album and in an EP, an album that has been reissued, etc. New cron.  
 This will delete last duplicate added track.
 
-#### Structure in the `CRONS_CONF` secret
+#### Structure in `crons.conf.json`
 
 ```json
 {
   "name": "remove-duplicates",
   "action": "remove-duplicates",
   "arguments": {
-    "access_token": "frblublublublublublublublublublublublublublublublu",
+    "access_token": "$MY_ACCESS_TOKEN",
     "playlistId": 1234567890
   }
 }
@@ -140,16 +146,17 @@ Must be an objects with the following properties:
 
 ## Running
 
-The workflows run on their own once the `CRONS_CONF` secret is set. `Run workflow` on the Actions tab runs a cadence by hand, outside of its schedule.
+The workflows run on their own once the token secrets are set. `Run workflow` on the Actions tab runs a cadence by hand, outside of its schedule.
 
-`npm run cron:once` is the command they run. It reads the configuration from the `CRONS_CONF` environment variable, and `CRON_NAMES` restricts it to a comma separated list of crons. Handy to check a token from a terminal without waiting for a schedule.
+`pnpm cron:once` is the command they run. It reads `crons.conf.json`, takes the tokens from the environment, and `CRON_NAMES` restricts it to a comma separated list of crons. Handy to check a token from a terminal without waiting for a schedule.
 
 ### Good to know
 
 - GitHub evaluates the workflow schedules in UTC and does not know about daylight saving, so the daily run drifts by an hour between summer and winter. It fires in the early morning, where it does not matter.
 - GitHub's scheduler is best effort and can be delayed by 10 to 30 minutes. Every script is idempotent, so a late or repeated run is harmless.
 - A scheduled workflow is automatically disabled after 60 days without activity in the repository.
-- Actions logs are public on a public repository, and a failed Deezer request carries the `access_token` in its axios error. Each token is therefore registered with `::add-mask::` before anything else runs, and the logger censors every `access_token` it is given, at any depth.
+- Actions logs are public on a public repository, and a failed Deezer request carries the `access_token` in its axios error. GitHub masks the secrets it hands to the job, the run registers them again with `::add-mask::` for anything reaching the logs by another route, and the logger censors every `access_token` it is given, at any depth.
+- The logs also carry the playlist and track ids of what each run changed, which is public on a public repository.
 - The job turns red as soon as a script logs an error, so a revoked token does not fail silently day after day.
 
 ## TODO
