@@ -26,11 +26,30 @@ const request = async (method: string, path: string, params: Params) => {
 export const getPlaylistTracks = (access_token: string, playlistId: number) =>
   request('GET', `/playlist/${playlistId}/tracks`, { access_token, limit });
 
+// The songs travel in the url, so a whole album at a time would eventually find
+// where Deezer stops reading one. Both writes split rather than find out, here
+// rather than in each caller: it is the api that imposes it.
+const SONGS_PER_CALL = 100;
+
+const writeSongs = async (
+  method: string,
+  access_token: string,
+  playlistId: number,
+  songs: number[],
+) => {
+  for (let i = 0; i < songs.length; i += SONGS_PER_CALL) {
+    await request(method, `/playlist/${playlistId}/tracks`, {
+      access_token,
+      songs: songs.slice(i, i + SONGS_PER_CALL).join(','),
+    });
+  }
+};
+
 export const deletePlaylistTracks = (access_token: string, playlistId: number, songs: number[]) =>
-  request('DELETE', `/playlist/${playlistId}/tracks`, { access_token, songs: songs.join(',') });
+  writeSongs('DELETE', access_token, playlistId, songs);
 
 export const postPlaylistTracks = (access_token: string, playlistId: number, songs: number[]) =>
-  request('POST', `/playlist/${playlistId}/tracks`, { access_token, songs: songs.join(',') });
+  writeSongs('POST', access_token, playlistId, songs);
 
 // The playlist itself rather than its tracks: this is where its description
 // lives, which is where a cron leaves a note for its next run.

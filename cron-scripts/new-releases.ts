@@ -6,12 +6,11 @@ import {
   getPlaylistTracks,
   getListeningHistory,
   postPlaylistTracks,
+  deletePlaylistTracks,
   postPlaylistDescription,
 } from '../utils/dzr';
 // Import the note a run leaves for the next one
 import { asDate, readWatermark, writeWatermark } from '../utils/watermark';
-// Import the rule it shares with remove-heard
-import { takeOutHeard } from '../utils/heard';
 // Import logger
 import setLogger from '../utils/logger';
 // Import run summary
@@ -22,10 +21,6 @@ import { Playlist, DeezerTrack, DeezerAlbum, DeezerArtist } from '../types';
 
 // Deezer answers at most fifty calls in one batch
 const BATCH_SIZE = 50;
-
-// A whole album at a time adds up, and the songs parameter of an add travels
-// in the url. Split rather than find out where Deezer stops reading.
-const ADD_SIZE = 100;
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -149,13 +144,11 @@ export default async function newReleases({
     // TAKE OUT WHAT HAS BEEN HEARD
     // Before anything is discovered, so a run that finds no new release still
     // does what its name promises to the tracks already there.
-    const tracksToRemove = await takeOutHeard(
-      access_token,
-      playlistId,
-      playlistTracksId,
-      playedTracksId,
+    const tracksToRemove = Array.from(playlistTracksId).filter((track) =>
+      playedTracksId.has(track),
     );
     if (tracksToRemove.length) {
+      await deletePlaylistTracks(access_token, playlistId, tracksToRemove);
       tracksToRemove.forEach((track) => playlistTracksId.delete(track));
       reportChange(logger, {
         action: 'tracks-removed',
@@ -235,9 +228,7 @@ export default async function newReleases({
     });
 
     if (tracksToAdd.length) {
-      for (const group of chunk(tracksToAdd, ADD_SIZE)) {
-        await postPlaylistTracks(access_token, playlistId, group);
-      }
+      await postPlaylistTracks(access_token, playlistId, tracksToAdd);
       reportChange(logger, {
         action: 'tracks-added',
         playlist: playlistId,

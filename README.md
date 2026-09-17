@@ -222,9 +222,9 @@ already reads the playlist and the history to decide what to add, and those are
 the same two answers the removal needs, so it costs nothing.
 
 The `remove-heard` cron below does the same removal hourly, because the history
-only holds about a day of listening and this one runs once. Neither replaces the
-other: this one keeps the playlist honest whenever it runs, that one keeps up
-with your listening in between.
+only holds about a day of listening and this one runs once a day. Neither
+replaces the other: this one keeps the playlist honest whenever it runs, that
+one keeps up with your listening in between.
 
 Reading the history needs the `listening_history` permission, which the other
 crons do not use. A run that cannot read it leaves the mark where it was, so
@@ -235,8 +235,8 @@ covered while a played one could still be poured in.
 
 The same removal as the releases cron above, on its own schedule: a track leaves
 the playlist once it appears in the listening history, and only then. Nothing is
-ever taken out for being old. Both crons share the rule, so running either one
-does the right thing.
+ever taken out for being old. Both crons do it, so running either one does the
+right thing; this one exists for the cadence, not for the rule.
 
 It runs hourly, which is not a taste for freshness. The history holds about a
 day of listening — measured at 93 tracks covering 25 hours — so a daily run
@@ -313,6 +313,21 @@ Each run also writes a summary on its page in the Actions tab, above the log:
 - 3 tracks added to playlist 9499677562
 - 1 track removed from playlist 9499677562
 ```
+
+### When each one runs
+
+Their schedules live in their own workflow, in UTC, in the second half of the
+hour. Reading them off `.github/workflows`:
+
+| Cron | Schedule | |
+|---|---|---|
+| family-playlist | `23 * * * *` | hourly |
+| car-playlist | `33 * * * *` | hourly |
+| remove-heard | `38 * * * *` | hourly |
+| lucas | `43 * * * *` | hourly |
+| thibaut | `53 * * * *` | hourly |
+| new-releases | `48 6 * * *` | daily, early morning |
+| remove-duplicates | `26 23 * * *` | daily, middle of the night |
 
 ### Good to know
 
