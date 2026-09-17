@@ -216,14 +216,21 @@ have covered artists it never saw.
 
 #### A release that is not out yet
 
-Deezer lists an album before it comes out, and its tracks do not play until the
-day it does. So the window has a ceiling as well as a floor: nothing dated after
-today is poured in.
+Deezer lists an album before it comes out, and most of its tracks do not play
+until the day it does — but not all of them: a single is often out weeks before
+the album it sits on. Dropping everything dated after today would miss it, and
+pouring the whole album in early would fill the playlist with tracks nobody can
+listen to.
 
-Taking those tracks back out once they were in would be worse than never adding
-them, because the mark would have moved past their release date and they would
-never be offered again. Left alone, they are found on the day they come out,
-like any other release.
+So an album dated after today is kept, and its tracks are filtered on whether
+Deezer says they can be played. That filter is trusted here and nowhere else,
+because here being wrong repairs itself: the mark a run leaves can never reach a
+date that has not come, so the album is still inside the window on its release
+day and whatever was held back is poured in then.
+
+On an album already out, the same filter would be final — the mark moves past
+it, nothing looks again — so a track Deezer calls unplayable today is added
+anyway. Losing it for good is worse than carrying it.
 
 #### What has already been heard
 

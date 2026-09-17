@@ -33,12 +33,13 @@ const chunk = <T>(items: T[], size: number): T[][] => {
 };
 
 // Every entry of a batch answers for itself, so one artist Deezer refuses does
-// not lose the forty nine others.
-const batchData = <T>(
+// not lose the forty nine others. Entries come back in the order they were
+// sent, which is what lets a caller tell which album an entry answers for.
+const batchEntries = <T>(
   batchResult: { data?: T[], error?: unknown }[],
   onError: () => void,
-): T[] =>
-    batchResult.flatMap((entry) => {
+): T[][] =>
+    batchResult.map((entry) => {
       if (entry.error) {
         logger.error('API Error Response', entry.error);
         onError();
@@ -46,6 +47,11 @@ const batchData = <T>(
       }
       return entry.data ?? [];
     });
+
+const batchData = <T>(
+  batchResult: { data?: T[], error?: unknown }[],
+  onError: () => void,
+): T[] => batchEntries<T>(batchResult, onError).flat();
 
 // Writes down the day this run covered, so the next one starts after it. A run
 // that could not read every artist leaves the previous mark alone rather than
@@ -186,39 +192,48 @@ export default async function newReleases({
     // playlist. Dates compare as strings in this format.
     const today = asDate(Date.now());
     const since = watermark ?? asDate(Date.now() - days * DAY);
-    // An album two artists released together answers in both their lists
-    const albumIds = new Set(
-      albums
-        .filter(
-          (album) =>
-            album.release_date >= since &&
-            // Deezer lists an album before it comes out, and its tracks are not
-            // playable until the day it does. Pouring them in early fills the
-            // playlist with things nobody can listen to, and taking them back
-            // out would lose them for good, since the mark would have moved
-            // past their release. Left alone, they are found on the day.
-            album.release_date <= today &&
-            (!recordTypes || recordTypes.includes(album.record_type)),
-        )
-        .map((album) => album.id),
-    );
+    // Each album to look into, and whether Deezer dates it after today. An
+    // album two artists released together answers in both their lists, so a
+    // map also keeps it from being asked for twice.
+    const releases = new Map<number, boolean>();
+    albums
+      .filter(
+        (album) =>
+          album.release_date >= since &&
+          (!recordTypes || recordTypes.includes(album.record_type)),
+      )
+      .forEach((album) => releases.set(album.id, album.release_date > today));
 
-    if (albumIds.size === 0) {
+    if (releases.size === 0) {
       logger.info('No release since', { since });
       await leaveMark(access_token, playlistId, playlist.description, today, complete);
       return;
     }
 
     // GET THEIR TRACKS
+    // An album dated after today is one Deezer has published early: the single
+    // off it plays now, the rest of the record only on the day. So its tracks
+    // are taken on what Deezer says can be played, and the others are left for
+    // a later run. That filter is only trusted here, where being wrong repairs
+    // itself: the album is still inside the window on its release day, since
+    // the mark can never move past a date that has not come, so a track wrongly
+    // held back is looked at again and poured in then. On an album already out,
+    // the same filter would be final, and a track Deezer calls unplayable today
+    // would be lost for good rather than merely late.
     const releasedTracksId: number[] = [];
-    for (const group of chunk(Array.from(albumIds), BATCH_SIZE)) {
+    for (const group of chunk(Array.from(releases.keys()), BATCH_SIZE)) {
       const { batch_result } = await getBatch(
         access_token,
         group.map((albumId) => `album/${albumId}/tracks`),
       );
-      releasedTracksId.push(
-        ...batchData<DeezerTrack>(batch_result, incomplete).map((track) => track.id),
-      );
+      batchEntries<DeezerTrack>(batch_result, incomplete).forEach((tracks, index) => {
+        const notOutYet = releases.get(group[index]);
+        releasedTracksId.push(
+          ...tracks
+            .filter((track) => !notOutYet || track.readable)
+            .map((track) => track.id),
+        );
+      });
     }
 
     // ADD WHAT IS NOT THERE YET

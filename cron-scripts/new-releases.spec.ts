@@ -33,7 +33,8 @@ const batch = (...entries: unknown[][]) => ({
 
 // A playlist holding nothing, so every released track is new
 const emptyPlaylist = () => nockGetPlaylistIdTracks(1, { data: [] });
-const playable = (id: number) => ({ id });
+const playable = (id: number) => ({ id, readable: true });
+const unplayable = (id: number) => ({ id, readable: false });
 const holding = (...ids: number[]) =>
   nockGetPlaylistIdTracks(1, { data: ids.map((id) => ({ id })) });
 
@@ -155,19 +156,69 @@ describe('new-releases', () => {
   });
 
   describe('a release that is not out yet', () => {
-    test('is left alone rather than poured in early', async () => {
-      // Deezer lists it before the day, and its tracks play on the day
+    test('gives up the single Deezer already lets us play', async () => {
+      // The single is out, the album it sits on is dated next month
+      nockGetPlaylist();
+      emptyPlaylist();
+      nothingPlayed();
+      nockGetFavouriteArtists();
+      nockGetBatch(batch([album(1, inDays(30))]));
+      nockGetBatch(batch([playable(101), unplayable(102), unplayable(103)]));
+      const { captured } = nockPostPlaylistIdTracksCapture();
+      nockPostPlaylistDescriptionCapture();
+
+      await newReleases(args);
+
+      expect(captured).toEqual(['101']);
+    });
+
+    test('pours in nothing when none of it plays yet', async () => {
       nockGetPlaylist();
       emptyPlaylist();
       nothingPlayed();
       nockGetFavouriteArtists();
       nockGetBatch(batch([album(1, inDays(7))]));
+      nockGetBatch(batch([unplayable(101), unplayable(102)]));
       const post = nockPostPlaylistIdTracksCapture();
       nockPostPlaylistDescriptionCapture();
 
       await newReleases(args);
 
       expect(post.scope.isDone()).toBeFalsy();
+    });
+
+    test('pours the rest of it in on the day it comes out', async () => {
+      // The mark a run leaves never reaches a date that has not come, so the
+      // album is still inside the window when it does
+      nockGetPlaylist({ description: `[dzr-cron:${today()}]` });
+      holding(101);
+      nothingPlayed();
+      nockGetFavouriteArtists();
+      nockGetBatch(batch([album(1, today())]));
+      nockGetBatch(batch([playable(101), unplayable(102), unplayable(103)]));
+      const { captured } = nockPostPlaylistIdTracksCapture();
+      nockPostPlaylistDescriptionCapture();
+
+      await newReleases(args);
+
+      expect(captured).toEqual(['102,103']);
+    });
+
+    test('never holds back a track of a release that is already out', async () => {
+      // Deezer calling a track unplayable today is not a reason to lose it for
+      // good: the mark moves past the album, and nothing would look again
+      nockGetPlaylist();
+      emptyPlaylist();
+      nothingPlayed();
+      nockGetFavouriteArtists();
+      nockGetBatch(batch([album(1, daysAgo(1))]));
+      nockGetBatch(batch([playable(101), unplayable(102)]));
+      const { captured } = nockPostPlaylistIdTracksCapture();
+      nockPostPlaylistDescriptionCapture();
+
+      await newReleases(args);
+
+      expect(captured).toEqual(['101,102']);
     });
 
     test('is poured in on the day it comes out', async () => {
