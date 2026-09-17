@@ -119,6 +119,77 @@ Must be an array of objects with the following properties:
   See how to get an access_token on the [Deezer API OAuth doc](https://developers.deezer.com/api/oauth).
 - `playlistId` is the playlist ID you want to synchonize. Must belong to the access_token account.
 
+### New releases
+
+I follow a few hundred artists and I miss what they put out, because a release
+shows up in an app I open when I think of it. This cron reads every artist in my
+favourites, keeps what they released in the last few days, and pours the tracks
+into one playlist. Nothing is ever removed from it, so a release waits there
+until I have played it.
+
+Asking Deezer once per artist would be a few hundred requests. The `batch`
+endpoint answers fifty calls at a time, so a run costs about a dozen.
+
+#### Arguments of the action
+
+```json
+{
+  "name": "new-releases",
+  "action": "new-releases",
+  "arguments": {
+    "access_token": "$MY_ACCESS_TOKEN",
+    "playlistId": 1234567890,
+    "days": 15,
+    "recordTypes": ["album", "ep", "single"]
+  }
+}
+```
+
+#### Arguments
+
+Must be an object with the following properties:
+
+- `access_token` is your Deezer user token. Needs the same permissions as the
+  other crons, and reads your favourite artists.
+- `playlistId` is the playlist the releases are poured into. Must belong to the
+  access_token account.
+- `days` is how far back a release is still considered new, and it is only used
+  on a playlist the cron has never touched — after that the mark in the
+  description says where to start. Optional, default 15. It only decides what
+  the cron looks at: nothing expires out of the playlist, so a wider window
+  costs a bigger first run and buys tolerance for the days the scheduler stays
+  silent.
+- `recordTypes` keeps only those kinds of release, among `album`, `compile`,
+  `ep` and `single`. Optional, everything by default. `compile` is where
+  reissues and best-of live, which are new releases of old music.
+
+#### The mark in the description
+
+A cron that never removes anything still has to know what it has already seen,
+and the playlist forgets a track the moment something takes it out. So each run
+writes down the day it covered, at the end of the playlist description:
+
+```
+Mes sorties [dzr-cron:2026-09-17]
+```
+
+The next run starts there rather than from `days`, which is what keeps a track
+you have played from being poured back in later. It is a date rather than a list
+of ids on purpose: ten characters instead of ten per track, and it cannot
+outgrow the field. Whatever you wrote in the description is kept, and the mark
+is replaced rather than stacked.
+
+A run reads slightly further back than the day it wrote down, because Deezer
+sometimes publishes a release after its own `release_date`. And a run that could
+not read every artist leaves the previous mark alone, rather than claiming to
+have covered artists it never saw.
+
+#### Not there yet
+
+The other half of the idea is to remove a track once it has been played, so the
+playlist is exactly what is left to discover. That needs the listening history,
+which needs a token permission these ones do not carry.
+
 ### Remove duplicates
 
 I have a lot of titles in my favorite playlist and I realized that there could be the same track several times, this is often due to a track present in an album and in an EP, an album that has been reissued, etc. New cron.  
