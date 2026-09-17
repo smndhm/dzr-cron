@@ -238,12 +238,18 @@ the playlist once it appears in the listening history, and only then. Nothing is
 ever taken out for being old. Both crons do it, so running either one does the
 right thing; this one exists for the cadence, not for the rule.
 
-It runs hourly, which is not a taste for freshness. The history holds about a
-day of listening — measured at 93 tracks covering 25 hours — so a daily run
-would have to catch every track on its only try, with no room for a busy evening
-or for the scheduler being an hour late, which it routinely is. Anything that
-falls out of the history unseen stays in the playlist for good. A handful of
-calls per run, so running it often costs nothing.
+It runs every four hours, which is not a taste for freshness. The history holds
+a count rather than a duration: ninety three entries, which at my measured rate
+is twenty five hours, but on a day with music in the background is closer to
+six. Anything that falls out of it unseen stays in the playlist for good, so the
+gap between two runs has to fit inside that, with room for the scheduler being
+its usual half hour late. A daily run has no room at all; hourly buys nothing
+but entries in the Actions tab.
+
+Whether that ninety three is a ceiling on the count or a window on the time is
+still open, and it changes the answer — a window would hold twenty five hours
+whatever you played. Every run logs `Listening history {tracks: n}`, so a few
+days of them settle it.
 
 Deezer answers the history fifty at a time and ignores `limit`, saying how many
 there are under `total`. The pages are walked until they are all read: stopping
@@ -323,9 +329,9 @@ hour. Reading them off `.github/workflows`:
 |---|---|---|
 | family-playlist | `23 * * * *` | hourly |
 | car-playlist | `33 * * * *` | hourly |
-| remove-heard | `38 * * * *` | hourly |
 | lucas | `43 * * * *` | hourly |
 | thibaut | `53 * * * *` | hourly |
+| remove-heard | `38 */4 * * *` | every four hours |
 | new-releases | `48 6 * * *` | daily, early morning |
 | remove-duplicates | `26 23 * * *` | daily, middle of the night |
 
