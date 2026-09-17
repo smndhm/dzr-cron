@@ -4,7 +4,9 @@ import {
   getBatch,
   getPlaylist,
   getPlaylistTracks,
+  getListeningHistory,
   postPlaylistTracks,
+  deletePlaylistTracks,
   postPlaylistDescription,
 } from '../utils/dzr';
 // Import the note a run leaves for the next one
@@ -20,11 +22,6 @@ import { Playlist, DeezerTrack, DeezerAlbum, DeezerArtist } from '../types';
 // Deezer answers at most fifty calls in one batch
 const BATCH_SIZE = 50;
 
-// A whole album at a time adds up, and both the batch query string and the
-// songs parameter of an add travel in the url. Split rather than find out
-// where Deezer stops reading.
-const ADD_SIZE = 100;
-
 const DAY = 24 * 60 * 60 * 1000;
 
 const chunk = <T>(items: T[], size: number): T[][] => {
@@ -36,12 +33,13 @@ const chunk = <T>(items: T[], size: number): T[][] => {
 };
 
 // Every entry of a batch answers for itself, so one artist Deezer refuses does
-// not lose the forty nine others.
-const batchData = <T>(
+// not lose the forty nine others. Entries come back in the order they were
+// sent, which is what lets a caller tell which album an entry answers for.
+const batchEntries = <T>(
   batchResult: { data?: T[], error?: unknown }[],
   onError: () => void,
-): T[] =>
-    batchResult.flatMap((entry) => {
+): T[][] =>
+    batchResult.map((entry) => {
       if (entry.error) {
         logger.error('API Error Response', entry.error);
         onError();
@@ -49,6 +47,11 @@ const batchData = <T>(
       }
       return entry.data ?? [];
     });
+
+const batchData = <T>(
+  batchResult: { data?: T[], error?: unknown }[],
+  onError: () => void,
+): T[] => batchEntries<T>(batchResult, onError).flat();
 
 // Writes down the day this run covered, so the next one starts after it. A run
 // that could not read every artist leaves the previous mark alone rather than
@@ -115,6 +118,51 @@ export default async function newReleases({
     }
     const watermark = readWatermark(playlist.description);
 
+    // WHAT IS IN THE PLAYLIST, AND WHAT HAS BEEN LISTENED TO
+    // Both answers are needed to decide what to pour in, and they are the same
+    // two the removal needs, so this cron takes played tracks out as well. The
+    // remove-heard cron does the same thing hourly, because the history only
+    // holds about a day of listening and this one runs once. Failing to read
+    // the history is not fatal, but the day covered must not move: a release
+    // already played would be poured in by the next run.
+    const { data: dzrDestinationPlaylistTracks } = await getPlaylistTracks(
+      access_token,
+      playlistId,
+    );
+    const playlistTracksId = new Set<number>(
+      dzrDestinationPlaylistTracks.map((track: DeezerTrack) => track.id),
+    );
+
+    const history = await getListeningHistory(access_token);
+    if (history.error) {
+      logger.error('API Error Response', history.error);
+      incomplete();
+    }
+    const playedTracksId = new Set<number>(
+      (history.data ?? []).map((track: DeezerTrack) => track.id),
+    );
+    // How deep the history goes decides how long this cron may sleep between
+    // runs: listen to more tracks than it holds and the earliest fall out
+    // unseen, leaving those releases in the playlist for good. Deezer does not
+    // say where it stops, so the runs say it instead.
+    logger.info('Listening history', { tracks: playedTracksId.size });
+
+    // TAKE OUT WHAT HAS BEEN HEARD
+    // Before anything is discovered, so a run that finds no new release still
+    // does what its name promises to the tracks already there.
+    const tracksToRemove = Array.from(playlistTracksId).filter((track) =>
+      playedTracksId.has(track),
+    );
+    if (tracksToRemove.length) {
+      await deletePlaylistTracks(access_token, playlistId, tracksToRemove);
+      tracksToRemove.forEach((track) => playlistTracksId.delete(track));
+      reportChange(logger, {
+        action: 'tracks-removed',
+        playlist: playlistId,
+        tracks: tracksToRemove,
+      });
+    }
+
     // GET FAVOURITE ARTISTS
     const artists = await getFavouriteArtists(access_token);
     if (artists.error) {
@@ -144,51 +192,56 @@ export default async function newReleases({
     // playlist. Dates compare as strings in this format.
     const today = asDate(Date.now());
     const since = watermark ?? asDate(Date.now() - days * DAY);
-    // An album two artists released together answers in both their lists
-    const albumIds = new Set(
-      albums
-        .filter(
-          (album) =>
-            album.release_date >= since &&
-            (!recordTypes || recordTypes.includes(album.record_type)),
-        )
-        .map((album) => album.id),
-    );
+    // Each album to look into, and whether Deezer dates it after today. An
+    // album two artists released together answers in both their lists, so a
+    // map also keeps it from being asked for twice.
+    const releases = new Map<number, boolean>();
+    albums
+      .filter(
+        (album) =>
+          album.release_date >= since &&
+          (!recordTypes || recordTypes.includes(album.record_type)),
+      )
+      .forEach((album) => releases.set(album.id, album.release_date > today));
 
-    if (albumIds.size === 0) {
+    if (releases.size === 0) {
       logger.info('No release since', { since });
       await leaveMark(access_token, playlistId, playlist.description, today, complete);
       return;
     }
 
     // GET THEIR TRACKS
+    // An album dated after today is one Deezer has published early: the single
+    // off it plays now, the rest of the record only on the day. So its tracks
+    // are taken on what Deezer says can be played, and the others are left for
+    // a later run. That filter is only trusted here, where being wrong repairs
+    // itself: the album is still inside the window on its release day, since
+    // the mark can never move past a date that has not come, so a track wrongly
+    // held back is looked at again and poured in then. On an album already out,
+    // the same filter would be final, and a track Deezer calls unplayable today
+    // would be lost for good rather than merely late.
     const releasedTracksId: number[] = [];
-    for (const group of chunk(Array.from(albumIds), BATCH_SIZE)) {
+    for (const group of chunk(Array.from(releases.keys()), BATCH_SIZE)) {
       const { batch_result } = await getBatch(
         access_token,
         group.map((albumId) => `album/${albumId}/tracks`),
       );
-      releasedTracksId.push(
-        ...batchData<DeezerTrack>(batch_result, incomplete).map((track) => track.id),
-      );
+      batchEntries<DeezerTrack>(batch_result, incomplete).forEach((tracks, index) => {
+        const notOutYet = releases.get(group[index]);
+        releasedTracksId.push(
+          ...tracks
+            .filter((track) => !notOutYet || track.readable)
+            .map((track) => track.id),
+        );
+      });
     }
 
-    // GET DESTINATION PLAYLIST TRACKS
-    const { data: dzrDestinationPlaylistTracks } = await getPlaylistTracks(
-      access_token,
-      playlistId,
-    );
-    const playlistTracksId = new Set(
-      dzrDestinationPlaylistTracks.map((track: DeezerTrack) => track.id),
-    );
-
     // ADD WHAT IS NOT THERE YET
-    // Nothing is ever removed here: a release stays until it has been heard,
-    // which is what the listening history will answer for once the token can
-    // read it. Until then the playlist only grows.
+    // A release already played is never poured in, rather than added now and
+    // taken out on the next run.
     const seen = new Set<number>();
     const tracksToAdd = releasedTracksId.filter((track) => {
-      if (playlistTracksId.has(track) || seen.has(track)) {
+      if (playlistTracksId.has(track) || playedTracksId.has(track) || seen.has(track)) {
         return false;
       }
       seen.add(track);
@@ -196,9 +249,7 @@ export default async function newReleases({
     });
 
     if (tracksToAdd.length) {
-      for (const group of chunk(tracksToAdd, ADD_SIZE)) {
-        await postPlaylistTracks(access_token, playlistId, group);
-      }
+      await postPlaylistTracks(access_token, playlistId, tracksToAdd);
       reportChange(logger, {
         action: 'tracks-added',
         playlist: playlistId,

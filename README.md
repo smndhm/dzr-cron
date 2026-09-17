@@ -52,6 +52,36 @@ The workflows hold no token. Wherever one is needed they name the secret carryin
 
 Each name is a repository secret, added under `Settings` > `Secrets and variables` > `Actions` > `New repository secret`, and passed to the job by `crons.yml`. Adding a token means adding a secret and the matching line in that workflow. A placeholder with no secret behind it fails the run, naming the secret and never its value.
 
+### Getting one
+
+Deezer app `414442`, registered on the `github.io` domain. Permissions are asked
+for at authorization rather than configured on the app, so widening them means
+authorizing again rather than registering anything new.
+
+Open this, and check the consent screen lists what you expect:
+
+```
+https://connect.deezer.com/oauth/auth.php?app_id=414442
+  &redirect_uri=https%3A%2F%2Fsmndhm.github.io%2Fdzr-cron%2F
+  &perms=offline_access,manage_library,delete_library,listening_history
+```
+
+It lands on a 404, which is fine: Pages is off for this repository and the code
+is in the address bar, as `?code=...`. Exchange it, with the secret from the
+app's page:
+
+```sh
+curl -s "https://connect.deezer.com/oauth/access_token.php?app_id=414442&secret=SECRET&code=CODE&output=json"
+```
+
+`{"access_token":"fr...","expires":0}` — the zero is `offline_access` being
+granted, which is why these tokens outlive everything else here. The code is
+good once and for a few minutes; a failed exchange means starting at the
+authorization again rather than retrying.
+
+The browser step cannot be replaced by a request: it is where Deezer shows you
+what is being asked for. The rest is one call.
+
 ## Scripts
 
 ### Last playlist tracks
@@ -149,8 +179,8 @@ endpoint answers fifty calls at a time, so a run costs about a dozen.
 
 Must be an object with the following properties:
 
-- `access_token` is your Deezer user token. Needs the same permissions as the
-  other crons, and reads your favourite artists.
+- `access_token` is your Deezer user token. Needs `listening_history` on top of
+  what the other crons ask for, and reads your favourite artists.
 - `playlistId` is the playlist the releases are poured into. Must belong to the
   access_token account.
 - `days` is how far back a release is still considered new, and it is only used
@@ -184,11 +214,86 @@ sometimes publishes a release after its own `release_date`. And a run that could
 not read every artist leaves the previous mark alone, rather than claiming to
 have covered artists it never saw.
 
-#### Not there yet
+#### A release that is not out yet
 
-The other half of the idea is to remove a track once it has been played, so the
-playlist is exactly what is left to discover. That needs the listening history,
-which needs a token permission these ones do not carry.
+Deezer lists an album before it comes out, and most of its tracks do not play
+until the day it does — but not all of them: a single is often out weeks before
+the album it sits on. Dropping everything dated after today would miss it, and
+pouring the whole album in early would fill the playlist with tracks nobody can
+listen to.
+
+So an album dated after today is kept, and its tracks are filtered on whether
+Deezer says they can be played. That filter is trusted here and nowhere else,
+because here being wrong repairs itself: the mark a run leaves can never reach a
+date that has not come, so the album is still inside the window on its release
+day and whatever was held back is poured in then.
+
+On an album already out, the same filter would be final — the mark moves past
+it, nothing looks again — so a track Deezer calls unplayable today is added
+anyway. Losing it for good is worse than carrying it.
+
+#### What has already been heard
+
+A release you have already played is never poured in, and one you have played
+since is taken back out. This cron does the whole of what its name promises: it
+already reads the playlist and the history to decide what to add, and those are
+the same two answers the removal needs, so it costs nothing.
+
+The `remove-heard` cron below does the same removal hourly, because the history
+only holds about a day of listening and this one runs once a day. Neither
+replaces the other: this one keeps the playlist honest whenever it runs, that
+one keeps up with your listening in between.
+
+Reading the history needs the `listening_history` permission, which the other
+crons do not use. A run that cannot read it leaves the mark where it was, so
+those releases stay reachable for the next one rather than being declared
+covered while a played one could still be poured in.
+
+### Remove heard
+
+The same removal as the releases cron above, on its own schedule: a track leaves
+the playlist once it appears in the listening history, and only then. Nothing is
+ever taken out for being old. Both crons do it, so running either one does the
+right thing; this one exists for the cadence, not for the rule.
+
+It runs every four hours, which is not a taste for freshness. The history holds
+a count rather than a duration: ninety three entries, which at my measured rate
+is twenty five hours, but on a day with music in the background is closer to
+six. Anything that falls out of it unseen stays in the playlist for good, so the
+gap between two runs has to fit inside that, with room for the scheduler being
+its usual half hour late. A daily run has no room at all; hourly buys nothing
+but entries in the Actions tab.
+
+Whether that ninety three is a ceiling on the count or a window on the time is
+still open, and it changes the answer — a window would hold twenty five hours
+whatever you played. Every run logs `Listening history {tracks: n}`, so a few
+days of them settle it.
+
+Deezer answers the history fifty at a time and ignores `limit`, saying how many
+there are under `total`. The pages are walked until they are all read: stopping
+at the first would leave everything older than the fiftieth play behind, which
+on that measurement is half a day.
+
+#### Arguments of the action
+
+```json
+{
+  "name": "remove-heard",
+  "action": "remove-heard",
+  "arguments": {
+    "access_token": "$MY_ACCESS_TOKEN",
+    "playlistId": 1234567890
+  }
+}
+```
+
+#### Arguments
+
+Must be an object with the following properties:
+
+- `access_token` is your Deezer user token. Needs `listening_history`.
+- `playlistId` is the playlist to empty as it gets played. Must belong to the
+  access_token account.
 
 ### Remove duplicates
 
@@ -232,6 +337,21 @@ Each run also writes a summary on its page in the Actions tab, above the log:
 - 3 tracks added to playlist 9499677562
 - 1 track removed from playlist 9499677562
 ```
+
+### When each one runs
+
+Their schedules live in their own workflow, in UTC, in the second half of the
+hour. Reading them off `.github/workflows`:
+
+| Cron | Schedule | |
+|---|---|---|
+| family-playlist | `23 * * * *` | hourly |
+| car-playlist | `33 * * * *` | hourly |
+| lucas | `43 * * * *` | hourly |
+| thibaut | `53 * * * *` | hourly |
+| remove-heard | `38 */4 * * *` | every four hours |
+| new-releases | `48 6 * * *` | daily, early morning |
+| remove-duplicates | `26 23 * * *` | daily, middle of the night |
 
 ### Good to know
 
