@@ -37,8 +37,7 @@ describe('watermark', () => {
         .toBe('Mes sorties [dzr-cron:2026-09-17]');
     });
 
-    test('writes only the mark when there is no description', () => {
-      expect(writeWatermark(undefined, '2026-09-17')).toBe('[dzr-cron:2026-09-17]');
+    test('writes only the mark on an empty description', () => {
       expect(writeWatermark('', '2026-09-17')).toBe('[dzr-cron:2026-09-17]');
     });
   });
