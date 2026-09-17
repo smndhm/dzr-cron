@@ -214,19 +214,49 @@ sometimes publishes a release after its own `release_date`. And a run that could
 not read every artist leaves the previous mark alone, rather than claiming to
 have covered artists it never saw.
 
-#### Taking out what has been heard
+#### What has already been heard
 
-A track leaves the playlist once it appears in the listening history, and only
-then. So the playlist is never a pile of everything released: it is exactly what
-is left to discover. Nothing is ever taken out for being old.
-
-This happens before anything is discovered, so a run that finds no new release
-still empties what you have played. And a release already in the history is
-never poured in at all, rather than added now and taken out on the next run.
+A release you have already played is never poured in. Taking one back out is the
+job of the `remove-heard` cron below, which runs far more often than this one.
 
 Reading the history needs the `listening_history` permission, which the other
-crons do not use. A run that cannot read it takes nothing out and leaves the
-mark where it was, so those releases stay reachable for the next one.
+crons do not use. A run that cannot read it leaves the mark where it was, so
+those releases stay reachable for the next one rather than being declared
+covered while a played one could still be poured in.
+
+### Remove heard
+
+The other half of the releases playlist, and the reason it is a list of what is
+left to discover rather than a pile: a track leaves it once it appears in the
+listening history, and only then. Nothing is ever taken out for being old.
+
+It runs hourly, which is not a taste for freshness. The history holds about a
+day of listening — measured at 93 tracks covering 25 hours — so a daily run
+would have to catch every track on its only try, with no room for a busy evening
+or for the scheduler being an hour late, which it routinely is. Anything that
+falls out of the history unseen stays in the playlist for good. Three calls per
+run, so running it often costs nothing.
+
+#### Arguments of the action
+
+```json
+{
+  "name": "remove-heard",
+  "action": "remove-heard",
+  "arguments": {
+    "access_token": "$MY_ACCESS_TOKEN",
+    "playlistId": 1234567890
+  }
+}
+```
+
+#### Arguments
+
+Must be an object with the following properties:
+
+- `access_token` is your Deezer user token. Needs `listening_history`.
+- `playlistId` is the playlist to empty as it gets played. Must belong to the
+  access_token account.
 
 ### Remove duplicates
 

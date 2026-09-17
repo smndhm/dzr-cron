@@ -7,7 +7,6 @@ import {
   nockGetPlaylistIdTracks,
   nockGetListeningHistory,
   nockPostPlaylistIdTracksCapture,
-  nockDeletePlaylistIdTracksCapture,
   nockPostPlaylistDescriptionCapture,
   nockPostPlaylistDescriptionError,
   nockRespondError,
@@ -152,36 +151,7 @@ describe('new-releases', () => {
     });
   });
 
-  describe('taking out what has been heard', () => {
-    test('removes a track of the playlist that has been played', async () => {
-      nockGetPlaylist();
-      holding(101, 102);
-      played(102);
-      nockGetFavouriteArtists();
-      nockGetBatch(batch([]));
-      const { scope, captured } = nockDeletePlaylistIdTracksCapture();
-      nockPostPlaylistDescriptionCapture();
-
-      await newReleases(args);
-
-      expect(scope.isDone()).toBeTruthy();
-      expect(captured.songs).toBe('102');
-    });
-
-    test('removes even when there is no new release to pour in', async () => {
-      nockGetPlaylist();
-      holding(101);
-      played(101);
-      nockGetFavouriteArtists();
-      nockGetBatch(batch([album(1, daysAgo(90))]));
-      const { scope } = nockDeletePlaylistIdTracksCapture();
-      nockPostPlaylistDescriptionCapture();
-
-      await newReleases(args);
-
-      expect(scope.isDone()).toBeTruthy();
-    });
-
+  describe('what has already been heard', () => {
     test('never pours back a release that has already been played', async () => {
       nockGetPlaylist();
       emptyPlaylist();
@@ -195,20 +165,6 @@ describe('new-releases', () => {
       await newReleases(args);
 
       expect(captured).toEqual(['102']);
-    });
-
-    test('takes nothing out when nothing has been played', async () => {
-      nockGetPlaylist();
-      holding(101);
-      nothingPlayed();
-      nockGetFavouriteArtists();
-      nockGetBatch(batch([]));
-      const { scope } = nockDeletePlaylistIdTracksCapture();
-      nockPostPlaylistDescriptionCapture();
-
-      await newReleases(args);
-
-      expect(scope.isDone()).toBeFalsy();
     });
 
     test('leaves the mark where it was when the history cannot be read', async () => {

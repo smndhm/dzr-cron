@@ -6,7 +6,6 @@ import {
   getPlaylistTracks,
   getListeningHistory,
   postPlaylistTracks,
-  deletePlaylistTracks,
   postPlaylistDescription,
 } from '../utils/dzr';
 // Import the note a run leaves for the next one
@@ -22,9 +21,9 @@ import { Playlist, DeezerTrack, DeezerAlbum, DeezerArtist } from '../types';
 // Deezer answers at most fifty calls in one batch
 const BATCH_SIZE = 50;
 
-// A whole album at a time adds up, and the songs parameter of a write travels
+// A whole album at a time adds up, and the songs parameter of an add travels
 // in the url. Split rather than find out where Deezer stops reading.
-const WRITE_SIZE = 100;
+const ADD_SIZE = 100;
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -117,10 +116,11 @@ export default async function newReleases({
     const watermark = readWatermark(playlist.description);
 
     // WHAT IS IN THE PLAYLIST, AND WHAT HAS BEEN LISTENED TO
-    // A track is taken out once it has been played, which is what makes the
-    // playlist a list of what is left to discover rather than a pile. Failing
-    // to read the history is not fatal, but the day covered must not move: the
-    // next run has to be able to look at these releases again.
+    // Neither is added again. Taking a played track back out is the job of the
+    // remove-heard cron, which runs hourly because the history only holds about
+    // a day of listening. Failing to read the history is not fatal here, but
+    // the day covered must not move: a release the owner has already played
+    // would be poured in by the next run.
     const { data: dzrDestinationPlaylistTracks } = await getPlaylistTracks(
       access_token,
       playlistId,
@@ -142,24 +142,6 @@ export default async function newReleases({
     // unseen, leaving those releases in the playlist for good. Deezer does not
     // say where it stops, so the runs say it instead.
     logger.info('Listening history', { tracks: playedTracksId.size });
-
-    // TAKE OUT WHAT HAS BEEN HEARD
-    // Before anything is discovered, so a run that finds no new release still
-    // empties what the owner has played.
-    const tracksToRemove = Array.from(playlistTracksId).filter((track) =>
-      playedTracksId.has(track),
-    );
-    if (tracksToRemove.length) {
-      for (const group of chunk(tracksToRemove, WRITE_SIZE)) {
-        await deletePlaylistTracks(access_token, playlistId, group);
-      }
-      tracksToRemove.forEach((track) => playlistTracksId.delete(track));
-      reportChange(logger, {
-        action: 'tracks-removed',
-        playlist: playlistId,
-        tracks: tracksToRemove,
-      });
-    }
 
     // GET FAVOURITE ARTISTS
     const artists = await getFavouriteArtists(access_token);
@@ -232,7 +214,7 @@ export default async function newReleases({
     });
 
     if (tracksToAdd.length) {
-      for (const group of chunk(tracksToAdd, WRITE_SIZE)) {
+      for (const group of chunk(tracksToAdd, ADD_SIZE)) {
         await postPlaylistTracks(access_token, playlistId, group);
       }
       reportChange(logger, {
