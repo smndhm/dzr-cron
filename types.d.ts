@@ -49,6 +49,11 @@ export interface NewReleasesCron extends Cron {
     arguments: Playlist & {days?: number} & {recordTypes?: string[]}
 }
 
+export interface RemoveHeardCron extends Cron {
+    action: 'remove-heard',
+    arguments: Playlist,
+}
+
 export interface RemoveDuplicatesCron extends Cron {
     action: 'remove-duplicates',
     arguments: Playlist,

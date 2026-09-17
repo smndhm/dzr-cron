@@ -24,6 +24,13 @@ describe('dzr', () => {
     expect(mockGetPlaylistIdTracks.isDone()).toBeTruthy();
   });    
 	
+  test('splits a write too long for one url', async () => {
+    // A whole album at a time gets there, so both writes chunk at a hundred
+    const mockPost = nockPostPlaylistIdTracks(3);
+    await postPlaylistTracks('token', 123456789, Array.from({ length: 250 }, (_, i) => i));
+    expect(mockPost.isDone()).toBeTruthy();
+  });
+
   test('deletePlaylistTracks', async () => {
     const mockDeletePlaylistIdTracks = nockDeletePlaylistIdTracks();
     await deletePlaylistTracks('token', 123456789, [1, 2]);

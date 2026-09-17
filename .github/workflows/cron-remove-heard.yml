@@ -1,0 +1,31 @@
+name: Cron remove-heard
+
+on:
+  # Every four hours. The listening history holds a count rather than a
+  # duration: ninety three entries, which at the measured rate is twenty five
+  # hours but on a day of music in the background is closer to six. Four hours
+  # leaves room for that day and for the scheduler being its usual half hour
+  # late; a daily run has no room at all, and hourly buys nothing but noise in
+  # the Actions tab. Whether that ninety three is a ceiling or a window is
+  # still open, and every run logs the number so it settles itself.
+  schedule:
+    - cron: '38 */4 * * *'
+  workflow_dispatch:
+
+# Several crons read a playlist another one writes, so they never overlap
+concurrency:
+  group: dzr-crons
+  cancel-in-progress: false
+
+jobs:
+  run:
+    uses: ./.github/workflows/crons.yml
+    with:
+      cron: remove-heard
+      action: remove-heard
+      arguments: |
+        {
+          "access_token": "$MY_ACCESS_TOKEN",
+          "playlistId": 15160366983
+        }
+    secrets: inherit
