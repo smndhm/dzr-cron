@@ -5,7 +5,7 @@ import { Logger } from './logger';
 // What a script did to a playlist. The logs say it line by line; this says it
 // once, at the top of the run's page.
 export type Change = {
-  action: 'tracks-added' | 'tracks-removed' | 'tracks-unplayable' | 'tracks-ordered',
+  action: 'tracks-added' | 'tracks-removed' | 'tracks-ordered',
   playlist: number,
   tracks?: number[],
 };
@@ -34,8 +34,6 @@ const describe = (change: Change): string => {
     return `${count(change.tracks, 'track')} added to playlist ${change.playlist}`;
   case 'tracks-removed':
     return `${count(change.tracks, 'track')} removed from playlist ${change.playlist}`;
-  case 'tracks-unplayable':
-    return `${count(change.tracks, 'track')} removed from playlist ${change.playlist}, not playable`;
   case 'tracks-ordered':
     return `playlist ${change.playlist} reordered`;
   }

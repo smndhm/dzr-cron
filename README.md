@@ -214,22 +214,16 @@ sometimes publishes a release after its own `release_date`. And a run that could
 not read every artist leaves the previous mark alone, rather than claiming to
 have covered artists it never saw.
 
-#### What cannot be played
+#### A release that is not out yet
 
-A release nobody can play is never poured in, and one the playlist already holds
-is taken out. Deezer loses the rights to a track and it sits there forever:
-since it can never be played, the listening history will never take it out
-either.
+Deezer lists an album before it comes out, and its tracks do not play until the
+day it does. So the window has a ceiling as well as a floor: nothing dated after
+today is poured in.
 
-`readable` is the only field that says so, and `last-tracks` has carried
-`// this params is sometimes not correct...` beside it for years. A track
-dropped wrongly does not come back, because the mark has moved past its release.
-So the summary says how many went and why, on a line of their own, rather than
-letting them disappear quietly:
-
-```
-- 2 tracks removed from playlist 15160366983, not playable
-```
+Taking those tracks back out once they were in would be worse than never adding
+them, because the mark would have moved past their release date and they would
+never be offered again. Left alone, they are found on the day they come out,
+like any other release.
 
 #### What has already been heard
 

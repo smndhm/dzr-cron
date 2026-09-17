@@ -17,6 +17,7 @@ import { getErrorCount } from '../utils/logger';
 const asDate = (time: number) => new Date(time).toISOString().slice(0, 10);
 const today = () => asDate(Date.now());
 const daysAgo = (days: number) => asDate(Date.now() - days * 24 * 60 * 60 * 1000);
+const inDays = (days: number) => asDate(Date.now() + days * 24 * 60 * 60 * 1000);
 
 const album = (id: number, release_date: string, record_type = 'album') => ({
   id,
@@ -32,12 +33,9 @@ const batch = (...entries: unknown[][]) => ({
 
 // A playlist holding nothing, so every released track is new
 const emptyPlaylist = () => nockGetPlaylistIdTracks(1, { data: [] });
-// A release Deezer says can be played, which is all this cron pours in
-const playable = (id: number) => ({ id, readable: true });
+const playable = (id: number) => ({ id });
 const holding = (...ids: number[]) =>
-  nockGetPlaylistIdTracks(1, { data: ids.map((id) => ({ id, readable: true })) });
-const holdingUnplayable = (...ids: number[]) =>
-  nockGetPlaylistIdTracks(1, { data: ids.map((id) => ({ id, readable: false })) });
+  nockGetPlaylistIdTracks(1, { data: ids.map((id) => ({ id })) });
 
 // Nothing played, so nothing is taken out
 const nothingPlayed = () => nockGetListeningHistory();
@@ -156,50 +154,35 @@ describe('new-releases', () => {
     });
   });
 
-  describe('what cannot be played', () => {
-    test('never pours in a release nobody can play', async () => {
+  describe('a release that is not out yet', () => {
+    test('is left alone rather than poured in early', async () => {
+      // Deezer lists it before the day, and its tracks play on the day
+      nockGetPlaylist();
+      emptyPlaylist();
+      nothingPlayed();
+      nockGetFavouriteArtists();
+      nockGetBatch(batch([album(1, inDays(7))]));
+      const post = nockPostPlaylistIdTracksCapture();
+      nockPostPlaylistDescriptionCapture();
+
+      await newReleases(args);
+
+      expect(post.scope.isDone()).toBeFalsy();
+    });
+
+    test('is poured in on the day it comes out', async () => {
       nockGetPlaylist();
       emptyPlaylist();
       nothingPlayed();
       nockGetFavouriteArtists();
       nockGetBatch(batch([album(1, today())]));
-      nockGetBatch(batch([playable(101), { id: 102, readable: false }]));
+      nockGetBatch(batch([playable(101)]));
       const { captured } = nockPostPlaylistIdTracksCapture();
       nockPostPlaylistDescriptionCapture();
 
       await newReleases(args);
 
       expect(captured).toEqual(['101']);
-    });
-
-    test('takes out one the playlist already holds', async () => {
-      // Nothing can ever play it, so nothing would ever take it out
-      nockGetPlaylist();
-      holdingUnplayable(101);
-      nothingPlayed();
-      nockGetFavouriteArtists();
-      nockGetBatch(batch([]));
-      const { scope, captured } = nockDeletePlaylistIdTracksCapture();
-      nockPostPlaylistDescriptionCapture();
-
-      await newReleases(args);
-
-      expect(scope.isDone()).toBeTruthy();
-      expect(captured.songs).toBe('101');
-    });
-
-    test('leaves a playable one alone', async () => {
-      nockGetPlaylist();
-      holding(101);
-      nothingPlayed();
-      nockGetFavouriteArtists();
-      nockGetBatch(batch([]));
-      const { scope } = nockDeletePlaylistIdTracksCapture();
-      nockPostPlaylistDescriptionCapture();
-
-      await newReleases(args);
-
-      expect(scope.isDone()).toBeFalsy();
     });
   });
 
