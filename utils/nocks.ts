@@ -111,7 +111,26 @@ export const nockPostPlaylistDescriptionError = () =>
     .query(() => true)
     .reply(200, { error: { type: 'Error', message: 'Error', code: 403 } });
 
+// Deezer answers the history fifty at a time, so a short answer is a last page
 export const nockGetListeningHistory = (response: Body = { data: [] }) =>
   nock('https://api.deezer.com')
     .get(/\/user\/me\/history/)
     .reply(200, response);
+
+// A full page followed by the rest, which is what makes the script ask twice
+export const nockGetListeningHistoryPages = (first: unknown[], second: unknown[]) => {
+  const total = first.length + second.length;
+  const indexes: string[] = [];
+  const scope = nock('https://api.deezer.com')
+    .get(/\/user\/me\/history/)
+    .times(2)
+    .query((query) => {
+      indexes.push(query.index as string);
+      return true;
+    })
+    .reply(200, () => ({
+      data: indexes.length === 1 ? first : second,
+      total,
+    }));
+  return { scope, indexes };
+};

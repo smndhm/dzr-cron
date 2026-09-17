@@ -234,8 +234,13 @@ It runs hourly, which is not a taste for freshness. The history holds about a
 day of listening — measured at 93 tracks covering 25 hours — so a daily run
 would have to catch every track on its only try, with no room for a busy evening
 or for the scheduler being an hour late, which it routinely is. Anything that
-falls out of the history unseen stays in the playlist for good. Three calls per
-run, so running it often costs nothing.
+falls out of the history unseen stays in the playlist for good. A handful of
+calls per run, so running it often costs nothing.
+
+Deezer answers the history fifty at a time and ignores `limit`, saying how many
+there are under `total`. The pages are walked until they are all read: stopping
+at the first would leave everything older than the fiftieth play behind, which
+on that measurement is half a day.
 
 #### Arguments of the action
 

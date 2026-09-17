@@ -47,10 +47,38 @@ export const postPlaylistDescription = (
 export const getFavouriteArtists = (access_token: string) =>
   request('GET', '/user/me/artists', { access_token, limit });
 
-// What the user has listened to lately, most recent first. This is the one
-// call that needs the listening_history permission.
-export const getListeningHistory = (access_token: string) =>
-  request('GET', '/user/me/history', { access_token, limit });
+// What the user has listened to lately, most recent first. This is the one call
+// that needs the listening_history permission.
+//
+// It is also the one that ignores limit: Deezer answers fifty at a time and
+// says how many there are in total, so the pages are walked until they are all
+// read. Reading only the first would silently leave everything older than the
+// fiftieth play behind.
+const HISTORY_PAGE = 50;
+// A history long enough to need this many pages is one nobody listens to
+const HISTORY_PAGES = 40;
+
+export const getListeningHistory = async (access_token: string) => {
+  const data: unknown[] = [];
+
+  for (let page = 0; page < HISTORY_PAGES; page += 1) {
+    const answer = await request('GET', '/user/me/history', {
+      access_token,
+      index: page * HISTORY_PAGE,
+    });
+    // Let the caller report it, as it would for a single call
+    if (answer?.error) {
+      return answer;
+    }
+    const read = answer?.data ?? [];
+    data.push(...read);
+    if (read.length < HISTORY_PAGE || data.length >= (answer?.total ?? data.length)) {
+      break;
+    }
+  }
+
+  return { data };
+};
 
 // Deezer answers a list of calls in one request. This is what makes a cron
 // over every favourite artist affordable: fifty artists in one call rather
