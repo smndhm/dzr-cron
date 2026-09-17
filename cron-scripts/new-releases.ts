@@ -64,10 +64,30 @@ const leaveMark = async (
     logger.warn('Incomplete run, leaving the mark where it was');
     return;
   }
-  const next = writeWatermark(description, day);
-  if (next !== description) {
-    await postPlaylistDescription(access_token, playlistId, next);
+  // An absent description is not an empty one: Deezer answers "" for a playlist
+  // without a description, so undefined means this answer is not the shape the
+  // script expects. Writing then would replace whatever the owner wrote with a
+  // bare mark, which is the one thing here that cannot be undone from a log.
+  if (typeof description !== 'string') {
+    logger.warn('No description to read, leaving it alone', { playlist: playlistId });
+    return;
   }
+  const next = writeWatermark(description, day);
+  if (next === description) {
+    return;
+  }
+  // Deezer answers 200 with an error payload of its own, so a write that did
+  // not happen looks exactly like one that did. The mark is what keeps a track
+  // from being poured back in, so a run that failed to leave it has to say so
+  // rather than pass for green and lose the ground it covered.
+  const answer = await postPlaylistDescription(access_token, playlistId, next);
+  if (answer?.error) {
+    logger.error('API Error Response', answer.error);
+    return;
+  }
+  // Not a reportChange: the summary is about what changed in the playlist, and
+  // the mark is bookkeeping rather than a track the owner would look for.
+  logger.info('Mark written', { playlist: playlistId, day });
 };
 
 // Script
