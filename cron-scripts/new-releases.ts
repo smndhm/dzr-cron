@@ -137,6 +137,11 @@ export default async function newReleases({
     const playedTracksId = new Set<number>(
       (history.data ?? []).map((track: DeezerTrack) => track.id),
     );
+    // How deep the history goes decides how long this cron may sleep between
+    // runs: listen to more tracks than it holds and the earliest fall out
+    // unseen, leaving those releases in the playlist for good. Deezer does not
+    // say where it stops, so the runs say it instead.
+    logger.info('Listening history', { tracks: playedTracksId.size });
 
     // TAKE OUT WHAT HAS BEEN HEARD
     // Before anything is discovered, so a run that finds no new release still
