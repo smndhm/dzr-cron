@@ -3,9 +3,10 @@ import {
   LastTracksCron,
   SyncPlaylistCron,
   RemoveDuplicatesCron,
+  NewReleasesCron,
 } from '../types';
 
-export type Cron = LastTracksCron | SyncPlaylistCron | RemoveDuplicatesCron;
+export type Cron = LastTracksCron | SyncPlaylistCron | RemoveDuplicatesCron | NewReleasesCron;
 
 // A cron is defined by the workflow that schedules it, so its definition
 // travels in the environment rather than in a file of its own.
@@ -17,7 +18,7 @@ export const CRON_ARGUMENTS_ENV = 'CRON_ARGUMENTS';
 // so a literal value has to fail loudly instead of being quietly committed.
 const TOKEN_PLACEHOLDER = /^\$[A-Z][A-Z0-9_]*$/;
 
-const ACTIONS = ['last-tracks', 'sync-playlists', 'remove-duplicates'];
+const ACTIONS = ['last-tracks', 'sync-playlists', 'remove-duplicates', 'new-releases'];
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -54,6 +55,21 @@ const assertArguments = (action: string, cronArguments: unknown): void => {
     }
     if (noExplicitLyrics !== undefined && typeof noExplicitLyrics !== 'boolean') {
       throw new Error(`${CRON_ARGUMENTS_ENV}: "noExplicitLyrics" must be a boolean.`);
+    }
+  }
+
+  if (action === 'new-releases') {
+    const { days, recordTypes } = cronArguments as Record<string, unknown>;
+    if (days !== undefined && (typeof days !== 'number' || days <= 0)) {
+      throw new Error(`${CRON_ARGUMENTS_ENV}: "days" must be a number of days above zero.`);
+    }
+    if (
+      recordTypes !== undefined &&
+      (!Array.isArray(recordTypes) ||
+        recordTypes.length === 0 ||
+        !recordTypes.every((type) => typeof type === 'string'))
+    ) {
+      throw new Error(`${CRON_ARGUMENTS_ENV}: "recordTypes" must be a non empty array of strings.`);
     }
   }
 };

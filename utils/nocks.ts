@@ -1,9 +1,12 @@
 import nock from 'nock';
 import mockEntityDeezerTracks from '../__mocks__/api-deezer-tracks.json';
 
+// What nock hands back as a json body
+type Body = Record<string, unknown>;
+
 export const nockGetPlaylistIdTracks = (
   times = 1,
-  response = {
+  response: Body = {
     ...mockEntityDeezerTracks,
   },
 ) =>
@@ -50,3 +53,31 @@ export const nockRespondError = (regexp: RegExp, times = 1) =>
     .get(regexp)
     .times(times)
     .reply(200, { error: { type: 'Error', message: 'Error', code: 403 } });
+
+export const nockGetFavouriteArtists = (
+  response: Body = { data: [{ id: 11, name: 'Artist' }] },
+) =>
+  nock('https://api.deezer.com')
+    .get(/\/user\/me\/artists/)
+    .reply(200, response);
+
+// The script calls the batch endpoint once for the albums and once for their
+// tracks, so the interceptors answer in the order they are declared.
+export const nockGetBatch = (response: Body) =>
+  nock('https://api.deezer.com')
+    .get(/\/batch/)
+    .reply(200, response);
+
+// Same as nockPostPlaylistIdTracks, but keeps the ids the script added
+export const nockPostPlaylistIdTracksCapture = (times = 1) => {
+  const captured: string[] = [];
+  const scope = nock('https://api.deezer.com')
+    .post(/\/playlist\/\d+\/tracks/)
+    .times(times)
+    .query((query) => {
+      captured.push(query.songs as string);
+      return true;
+    })
+    .reply(200);
+  return { scope, captured };
+};

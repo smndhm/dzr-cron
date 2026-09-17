@@ -32,5 +32,21 @@ export const deletePlaylistTracks = (access_token: string, playlistId: number, s
 export const postPlaylistTracks = (access_token: string, playlistId: number, songs: number[]) =>
   request('POST', `/playlist/${playlistId}/tracks`, { access_token, songs: songs.join(',') });
 
+// The artists the user has put in their favourites
+export const getFavouriteArtists = (access_token: string) =>
+  request('GET', '/user/me/artists', { access_token, limit });
+
+// Deezer answers a list of calls in one request. This is what makes a cron
+// over every favourite artist affordable: fifty artists in one call rather
+// than one call each. The answer is { batch_result: [...] }, in the order the
+// calls were given.
+export const getBatch = (access_token: string, relativeUrls: string[]) =>
+  request('GET', '/batch', {
+    access_token,
+    methods: JSON.stringify(
+      relativeUrls.map((relative_url) => ({ relative_url, params: { limit } })),
+    ),
+  });
+
 export const postPlaylistTracksOrder = (access_token: string, playlistId: number, order: number[]) =>
   request('POST', `/playlist/${playlistId}/tracks`, { access_token, order: order.join(',') });
