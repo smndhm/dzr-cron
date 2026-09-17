@@ -127,6 +127,24 @@ export default async function newReleases({
       dzrDestinationPlaylistTracks.map((track: DeezerTrack) => track.id),
     );
 
+    // TAKE OUT WHAT CANNOT BE PLAYED
+    // Deezer loses the rights to a track and it sits there forever: it can
+    // never be played, so nothing will ever take it out. readable is the only
+    // thing that says so, and last-tracks has distrusted it for years, so this
+    // says which tracks it dropped rather than doing it quietly.
+    const unplayable: number[] = dzrDestinationPlaylistTracks
+      .filter((track: DeezerTrack) => !track.readable)
+      .map((track: DeezerTrack) => track.id);
+    if (unplayable.length) {
+      await deletePlaylistTracks(access_token, playlistId, unplayable);
+      unplayable.forEach((track) => playlistTracksId.delete(track));
+      reportChange(logger, {
+        action: 'tracks-unplayable',
+        playlist: playlistId,
+        tracks: unplayable,
+      });
+    }
+
     const history = await getListeningHistory(access_token);
     if (history.error) {
       logger.error('API Error Response', history.error);
@@ -211,7 +229,10 @@ export default async function newReleases({
         group.map((albumId) => `album/${albumId}/tracks`),
       );
       releasedTracksId.push(
-        ...batchData<DeezerTrack>(batch_result, incomplete).map((track) => track.id),
+        ...batchData<DeezerTrack>(batch_result, incomplete)
+          // Same filter as last-tracks: a release nobody can play is not one
+          .filter((track) => track.readable)
+          .map((track) => track.id),
       );
     }
 
