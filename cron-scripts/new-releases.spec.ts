@@ -5,7 +5,9 @@ import {
   nockGetBatch,
   nockGetPlaylist,
   nockGetPlaylistIdTracks,
+  nockGetListeningHistory,
   nockPostPlaylistIdTracksCapture,
+  nockDeletePlaylistIdTracksCapture,
   nockPostPlaylistDescriptionCapture,
   nockPostPlaylistDescriptionError,
   nockRespondError,
@@ -30,6 +32,13 @@ const batch = (...entries: unknown[][]) => ({
 
 // A playlist holding nothing, so every released track is new
 const emptyPlaylist = () => nockGetPlaylistIdTracks(1, { data: [] });
+const holding = (...ids: number[]) =>
+  nockGetPlaylistIdTracks(1, { data: ids.map((id) => ({ id })) });
+
+// Nothing played, so nothing is taken out
+const nothingPlayed = () => nockGetListeningHistory();
+const played = (...ids: number[]) =>
+  nockGetListeningHistory({ data: ids.map((id) => ({ id })) });
 
 const args = { access_token: 'token', playlistId: 123456789 };
 
@@ -38,108 +47,193 @@ describe('new-releases', () => {
     cleanAll();
   });
 
-  test('adds the tracks of a release inside the window', async () => {
-    nockGetPlaylist();
-    nockGetFavouriteArtists();
-    nockGetBatch(batch([album(1, today())]));
-    nockGetBatch(batch([{ id: 101 }, { id: 102 }]));
-    emptyPlaylist();
-    const { scope, captured } = nockPostPlaylistIdTracksCapture();
-    nockPostPlaylistDescriptionCapture();
+  describe('pouring releases in', () => {
+    test('adds the tracks of a release inside the window', async () => {
+      nockGetPlaylist();
+      emptyPlaylist();
+      nothingPlayed();
+      nockGetFavouriteArtists();
+      nockGetBatch(batch([album(1, today())]));
+      nockGetBatch(batch([{ id: 101 }, { id: 102 }]));
+      const { scope, captured } = nockPostPlaylistIdTracksCapture();
+      nockPostPlaylistDescriptionCapture();
 
-    await newReleases(args);
+      await newReleases(args);
 
-    expect(scope.isDone()).toBeTruthy();
-    expect(captured).toEqual(['101,102']);
-  });
-
-  test('ignores a release older than the window', async () => {
-    nockGetPlaylist();
-    nockGetFavouriteArtists();
-    nockGetBatch(batch([album(1, daysAgo(20))]));
-    const post = nockPostPlaylistIdTracksCapture();
-    nockPostPlaylistDescriptionCapture();
-
-    await newReleases({ ...args, days: 15 });
-
-    expect(post.scope.isDone()).toBeFalsy();
-  });
-
-  test('adds nothing that is already in the playlist', async () => {
-    nockGetPlaylist();
-    nockGetFavouriteArtists();
-    nockGetBatch(batch([album(1, today())]));
-    nockGetBatch(batch([{ id: 101 }, { id: 102 }]));
-    nockGetPlaylistIdTracks(1, { data: [{ id: 101 }] });
-    const { captured } = nockPostPlaylistIdTracksCapture();
-    nockPostPlaylistDescriptionCapture();
-
-    await newReleases(args);
-
-    expect(captured).toEqual(['102']);
-  });
-
-  test('asks for an album released by two favourites only once', async () => {
-    nockGetPlaylist();
-    nockGetFavouriteArtists({ data: [{ id: 11 }, { id: 12 }] });
-    nockGetBatch(batch([album(1, today())], [album(1, today())]));
-    nockGetBatch(batch([{ id: 101 }]));
-    emptyPlaylist();
-    const { captured } = nockPostPlaylistIdTracksCapture();
-    nockPostPlaylistDescriptionCapture();
-
-    await newReleases(args);
-
-    expect(captured).toEqual(['101']);
-  });
-
-  test('keeps only the record types it was given', async () => {
-    nockGetPlaylist();
-    nockGetFavouriteArtists();
-    nockGetBatch(batch([album(1, today(), 'album'), album(2, today(), 'compile')]));
-    nockGetBatch(batch([{ id: 101 }]));
-    emptyPlaylist();
-    const { captured } = nockPostPlaylistIdTracksCapture();
-    nockPostPlaylistDescriptionCapture();
-
-    await newReleases({ ...args, recordTypes: ['album'] });
-
-    expect(captured).toEqual(['101']);
-  });
-
-  test('reports an error rather than throwing when the artists cannot be read', async () => {
-    nockGetPlaylist();
-    nockRespondError(/\/user\/me\/artists/);
-    const post = nockPostPlaylistIdTracksCapture();
-
-    await newReleases(args);
-
-    expect(post.scope.isDone()).toBeFalsy();
-  });
-
-  test('keeps going when one artist of a batch fails', async () => {
-    nockGetPlaylist();
-    nockGetFavouriteArtists({ data: [{ id: 11 }, { id: 12 }] });
-    nockGetBatch({
-      batch_result: [{ error: { message: 'nope' } }, { data: [album(2, today())] }],
+      expect(scope.isDone()).toBeTruthy();
+      expect(captured).toEqual(['101,102']);
     });
-    nockGetBatch(batch([{ id: 201 }]));
-    emptyPlaylist();
-    const { captured } = nockPostPlaylistIdTracksCapture();
 
-    await newReleases(args);
+    test('ignores a release older than the window', async () => {
+      nockGetPlaylist();
+      emptyPlaylist();
+      nothingPlayed();
+      nockGetFavouriteArtists();
+      nockGetBatch(batch([album(1, daysAgo(20))]));
+      const post = nockPostPlaylistIdTracksCapture();
+      nockPostPlaylistDescriptionCapture();
 
-    expect(captured).toEqual(['201']);
+      await newReleases({ ...args, days: 15 });
+
+      expect(post.scope.isDone()).toBeFalsy();
+    });
+
+    test('adds nothing that is already in the playlist', async () => {
+      nockGetPlaylist();
+      holding(101);
+      nothingPlayed();
+      nockGetFavouriteArtists();
+      nockGetBatch(batch([album(1, today())]));
+      nockGetBatch(batch([{ id: 101 }, { id: 102 }]));
+      const { captured } = nockPostPlaylistIdTracksCapture();
+      nockPostPlaylistDescriptionCapture();
+
+      await newReleases(args);
+
+      expect(captured).toEqual(['102']);
+    });
+
+    test('asks for an album released by two favourites only once', async () => {
+      nockGetPlaylist();
+      emptyPlaylist();
+      nothingPlayed();
+      nockGetFavouriteArtists({ data: [{ id: 11 }, { id: 12 }] });
+      nockGetBatch(batch([album(1, today())], [album(1, today())]));
+      nockGetBatch(batch([{ id: 101 }]));
+      const { captured } = nockPostPlaylistIdTracksCapture();
+      nockPostPlaylistDescriptionCapture();
+
+      await newReleases(args);
+
+      expect(captured).toEqual(['101']);
+    });
+
+    test('keeps only the record types it was given', async () => {
+      nockGetPlaylist();
+      emptyPlaylist();
+      nothingPlayed();
+      nockGetFavouriteArtists();
+      nockGetBatch(batch([album(1, today(), 'album'), album(2, today(), 'compile')]));
+      nockGetBatch(batch([{ id: 101 }]));
+      const { captured } = nockPostPlaylistIdTracksCapture();
+      nockPostPlaylistDescriptionCapture();
+
+      await newReleases({ ...args, recordTypes: ['album'] });
+
+      expect(captured).toEqual(['101']);
+    });
+
+    test('keeps going when one artist of a batch fails', async () => {
+      nockGetPlaylist();
+      emptyPlaylist();
+      nothingPlayed();
+      nockGetFavouriteArtists({ data: [{ id: 11 }, { id: 12 }] });
+      nockGetBatch({
+        batch_result: [{ error: { message: 'nope' } }, { data: [album(2, today())] }],
+      });
+      nockGetBatch(batch([{ id: 201 }]));
+      const { captured } = nockPostPlaylistIdTracksCapture();
+
+      await newReleases(args);
+
+      expect(captured).toEqual(['201']);
+    });
+
+    test('reports an error rather than throwing when the artists cannot be read', async () => {
+      nockGetPlaylist();
+      emptyPlaylist();
+      nothingPlayed();
+      nockRespondError(/\/user\/me\/artists/);
+      const post = nockPostPlaylistIdTracksCapture();
+
+      await newReleases(args);
+
+      expect(post.scope.isDone()).toBeFalsy();
+    });
+  });
+
+  describe('taking out what has been heard', () => {
+    test('removes a track of the playlist that has been played', async () => {
+      nockGetPlaylist();
+      holding(101, 102);
+      played(102);
+      nockGetFavouriteArtists();
+      nockGetBatch(batch([]));
+      const { scope, captured } = nockDeletePlaylistIdTracksCapture();
+      nockPostPlaylistDescriptionCapture();
+
+      await newReleases(args);
+
+      expect(scope.isDone()).toBeTruthy();
+      expect(captured.songs).toBe('102');
+    });
+
+    test('removes even when there is no new release to pour in', async () => {
+      nockGetPlaylist();
+      holding(101);
+      played(101);
+      nockGetFavouriteArtists();
+      nockGetBatch(batch([album(1, daysAgo(90))]));
+      const { scope } = nockDeletePlaylistIdTracksCapture();
+      nockPostPlaylistDescriptionCapture();
+
+      await newReleases(args);
+
+      expect(scope.isDone()).toBeTruthy();
+    });
+
+    test('never pours back a release that has already been played', async () => {
+      nockGetPlaylist();
+      emptyPlaylist();
+      played(101);
+      nockGetFavouriteArtists();
+      nockGetBatch(batch([album(1, today())]));
+      nockGetBatch(batch([{ id: 101 }, { id: 102 }]));
+      const { captured } = nockPostPlaylistIdTracksCapture();
+      nockPostPlaylistDescriptionCapture();
+
+      await newReleases(args);
+
+      expect(captured).toEqual(['102']);
+    });
+
+    test('takes nothing out when nothing has been played', async () => {
+      nockGetPlaylist();
+      holding(101);
+      nothingPlayed();
+      nockGetFavouriteArtists();
+      nockGetBatch(batch([]));
+      const { scope } = nockDeletePlaylistIdTracksCapture();
+      nockPostPlaylistDescriptionCapture();
+
+      await newReleases(args);
+
+      expect(scope.isDone()).toBeFalsy();
+    });
+
+    test('leaves the mark where it was when the history cannot be read', async () => {
+      // Those releases have to stay reachable for the next run
+      nockGetPlaylist({ description: 'Sorties [dzr-cron:2020-01-01]' });
+      emptyPlaylist();
+      nockRespondError(/\/user\/me\/history/);
+      nockGetFavouriteArtists();
+      nockGetBatch(batch([]));
+      const { scope } = nockPostPlaylistDescriptionCapture();
+
+      await newReleases(args);
+
+      expect(scope.isDone()).toBeFalsy();
+    });
   });
 
   describe('the mark left in the description', () => {
     test('starts from it rather than from the window', async () => {
-      // Released eighty days ago, so only a mark can bring it back
       nockGetPlaylist({ description: 'Sorties [dzr-cron:2020-01-01]' });
+      emptyPlaylist();
+      nothingPlayed();
       nockGetFavouriteArtists();
       nockGetBatch(batch([album(1, daysAgo(80))]));
       nockGetBatch(batch([{ id: 101 }]));
-      emptyPlaylist();
       const { captured } = nockPostPlaylistIdTracksCapture();
       nockPostPlaylistDescriptionCapture();
 
@@ -150,6 +244,8 @@ describe('new-releases', () => {
 
     test('ignores a release the mark has already covered', async () => {
       nockGetPlaylist({ description: `[dzr-cron:${today()}]` });
+      emptyPlaylist();
+      nothingPlayed();
       nockGetFavouriteArtists();
       nockGetBatch(batch([album(1, daysAgo(10))]));
       const post = nockPostPlaylistIdTracksCapture();
@@ -161,12 +257,12 @@ describe('new-releases', () => {
     });
 
     test('looks slightly further back than the day it wrote down', async () => {
-      // The lag is what catches a release Deezer published after its own date
       nockGetPlaylist({ description: `[dzr-cron:${today()}]` });
+      emptyPlaylist();
+      nothingPlayed();
       nockGetFavouriteArtists();
       nockGetBatch(batch([album(1, daysAgo(1))]));
       nockGetBatch(batch([{ id: 101 }]));
-      emptyPlaylist();
       const { captured } = nockPostPlaylistIdTracksCapture();
       nockPostPlaylistDescriptionCapture();
 
@@ -177,6 +273,8 @@ describe('new-releases', () => {
 
     test('keeps what the owner wrote and replaces its own mark', async () => {
       nockGetPlaylist({ description: 'Sorties [dzr-cron:2020-01-01]' });
+      emptyPlaylist();
+      nothingPlayed();
       nockGetFavouriteArtists();
       nockGetBatch(batch([]));
       const { scope, captured } = nockPostPlaylistDescriptionCapture();
@@ -188,9 +286,9 @@ describe('new-releases', () => {
     });
 
     test('is not written at all when the answer carries no description', async () => {
-      // Which is what a wrong field name looks like, and writing then would
-      // replace whatever the owner wrote with a bare mark
       nockGetPlaylist({ id: 123456789 });
+      emptyPlaylist();
+      nothingPlayed();
       nockGetFavouriteArtists();
       nockGetBatch(batch([]));
       const { scope } = nockPostPlaylistDescriptionCapture();
@@ -201,8 +299,9 @@ describe('new-releases', () => {
     });
 
     test('turns the run red when Deezer refuses the write', async () => {
-      // A 200 carrying an error is how Deezer says no, so nothing throws
       nockGetPlaylist({ description: 'Sorties' });
+      emptyPlaylist();
+      nothingPlayed();
       nockGetFavouriteArtists();
       nockGetBatch(batch([]));
       nockPostPlaylistDescriptionError();
@@ -215,6 +314,8 @@ describe('new-releases', () => {
 
     test('is left alone when an artist could not be read', async () => {
       nockGetPlaylist({ description: 'Sorties [dzr-cron:2020-01-01]' });
+      emptyPlaylist();
+      nothingPlayed();
       nockGetFavouriteArtists();
       nockGetBatch({ batch_result: [{ error: { message: 'nope' } }] });
       const { scope } = nockPostPlaylistDescriptionCapture();

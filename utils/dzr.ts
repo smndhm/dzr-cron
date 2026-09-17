@@ -47,6 +47,11 @@ export const postPlaylistDescription = (
 export const getFavouriteArtists = (access_token: string) =>
   request('GET', '/user/me/artists', { access_token, limit });
 
+// What the user has listened to lately, most recent first. This is the one
+// call that needs the listening_history permission.
+export const getListeningHistory = (access_token: string) =>
+  request('GET', '/user/me/history', { access_token, limit });
+
 // Deezer answers a list of calls in one request. This is what makes a cron
 // over every favourite artist affordable: fifty artists in one call rather
 // than one call each. The answer is { batch_result: [...] }, in the order the

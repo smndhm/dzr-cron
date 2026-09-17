@@ -110,3 +110,8 @@ export const nockPostPlaylistDescriptionError = () =>
     .post(isPlaylistItself)
     .query(() => true)
     .reply(200, { error: { type: 'Error', message: 'Error', code: 403 } });
+
+export const nockGetListeningHistory = (response: Body = { data: [] }) =>
+  nock('https://api.deezer.com')
+    .get(/\/user\/me\/history/)
+    .reply(200, response);

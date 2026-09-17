@@ -52,6 +52,36 @@ The workflows hold no token. Wherever one is needed they name the secret carryin
 
 Each name is a repository secret, added under `Settings` > `Secrets and variables` > `Actions` > `New repository secret`, and passed to the job by `crons.yml`. Adding a token means adding a secret and the matching line in that workflow. A placeholder with no secret behind it fails the run, naming the secret and never its value.
 
+### Getting one
+
+Deezer app `414442`, registered on the `github.io` domain. Permissions are asked
+for at authorization rather than configured on the app, so widening them means
+authorizing again rather than registering anything new.
+
+Open this, and check the consent screen lists what you expect:
+
+```
+https://connect.deezer.com/oauth/auth.php?app_id=414442
+  &redirect_uri=https%3A%2F%2Fsmndhm.github.io%2Fdzr-cron%2F
+  &perms=offline_access,manage_library,delete_library,listening_history
+```
+
+It lands on a 404, which is fine: Pages is off for this repository and the code
+is in the address bar, as `?code=...`. Exchange it, with the secret from the
+app's page:
+
+```sh
+curl -s "https://connect.deezer.com/oauth/access_token.php?app_id=414442&secret=SECRET&code=CODE&output=json"
+```
+
+`{"access_token":"fr...","expires":0}` — the zero is `offline_access` being
+granted, which is why these tokens outlive everything else here. The code is
+good once and for a few minutes; a failed exchange means starting at the
+authorization again rather than retrying.
+
+The browser step cannot be replaced by a request: it is where Deezer shows you
+what is being asked for. The rest is one call.
+
 ## Scripts
 
 ### Last playlist tracks
@@ -149,8 +179,8 @@ endpoint answers fifty calls at a time, so a run costs about a dozen.
 
 Must be an object with the following properties:
 
-- `access_token` is your Deezer user token. Needs the same permissions as the
-  other crons, and reads your favourite artists.
+- `access_token` is your Deezer user token. Needs `listening_history` on top of
+  what the other crons ask for, and reads your favourite artists.
 - `playlistId` is the playlist the releases are poured into. Must belong to the
   access_token account.
 - `days` is how far back a release is still considered new, and it is only used
@@ -184,11 +214,19 @@ sometimes publishes a release after its own `release_date`. And a run that could
 not read every artist leaves the previous mark alone, rather than claiming to
 have covered artists it never saw.
 
-#### Not there yet
+#### Taking out what has been heard
 
-The other half of the idea is to remove a track once it has been played, so the
-playlist is exactly what is left to discover. That needs the listening history,
-which needs a token permission these ones do not carry.
+A track leaves the playlist once it appears in the listening history, and only
+then. So the playlist is never a pile of everything released: it is exactly what
+is left to discover. Nothing is ever taken out for being old.
+
+This happens before anything is discovered, so a run that finds no new release
+still empties what you have played. And a release already in the history is
+never poured in at all, rather than added now and taken out on the next run.
+
+Reading the history needs the `listening_history` permission, which the other
+crons do not use. A run that cannot read it takes nothing out and leaves the
+mark where it was, so those releases stay reachable for the next one.
 
 ### Remove duplicates
 
