@@ -2,9 +2,13 @@
 import {
   getFavouriteArtists,
   getBatch,
+  getPlaylist,
   getPlaylistTracks,
   postPlaylistTracks,
+  postPlaylistDescription,
 } from '../utils/dzr';
+// Import the note a run leaves for the next one
+import { asDate, readWatermark, writeWatermark } from '../utils/watermark';
 // Import logger
 import setLogger from '../utils/logger';
 // Import run summary
@@ -33,14 +37,38 @@ const chunk = <T>(items: T[], size: number): T[][] => {
 
 // Every entry of a batch answers for itself, so one artist Deezer refuses does
 // not lose the forty nine others.
-const batchData = <T>(batchResult: { data?: T[], error?: unknown }[]): T[] =>
-  batchResult.flatMap((entry) => {
-    if (entry.error) {
-      logger.error('API Error Response', entry.error);
-      return [];
-    }
-    return entry.data ?? [];
-  });
+const batchData = <T>(
+  batchResult: { data?: T[], error?: unknown }[],
+  onError: () => void,
+): T[] =>
+    batchResult.flatMap((entry) => {
+      if (entry.error) {
+        logger.error('API Error Response', entry.error);
+        onError();
+        return [];
+      }
+      return entry.data ?? [];
+    });
+
+// Writes down the day this run covered, so the next one starts after it. A run
+// that could not read every artist leaves the previous mark alone rather than
+// claiming ground it never walked.
+const leaveMark = async (
+  access_token: string,
+  playlistId: number,
+  description: unknown,
+  day: string,
+  complete: boolean,
+) => {
+  if (!complete) {
+    logger.warn('Incomplete run, leaving the mark where it was');
+    return;
+  }
+  const next = writeWatermark(description, day);
+  if (next !== description) {
+    await postPlaylistDescription(access_token, playlistId, next);
+  }
+};
 
 // Script
 export default async function newReleases({
@@ -51,6 +79,21 @@ export default async function newReleases({
 }: Playlist & {days?: number} & {recordTypes?: string[]}) {
   try {
     logger.info('Script started');
+
+    // An artist Deezer refuses is an artist whose releases this run has not
+    // seen, so the day it covers must not move past them.
+    let complete = true;
+    const incomplete = () => {
+      complete = false;
+    };
+
+    // WHERE THE PREVIOUS RUN STOPPED
+    const playlist = await getPlaylist(access_token, playlistId);
+    if (playlist.error) {
+      logger.error('API Error Response', playlist.error);
+      return;
+    }
+    const watermark = readWatermark(playlist.description);
 
     // GET FAVOURITE ARTISTS
     const artists = await getFavouriteArtists(access_token);
@@ -72,13 +115,15 @@ export default async function newReleases({
         access_token,
         group.map((artistId) => `artist/${artistId}/albums`),
       );
-      albums.push(...batchData<DeezerAlbum>(batch_result));
+      albums.push(...batchData<DeezerAlbum>(batch_result, incomplete));
     }
 
     // KEEP THE RECENT ONES
-    // Dates compare as strings in this format, and release_date has no time,
-    // so the window starts at midnight UTC of its first day.
-    const since = new Date(Date.now() - days * DAY).toISOString().slice(0, 10);
+    // The mark left by the previous run when there is one, so a release is
+    // looked at once and never again, however long ago it was taken out of the
+    // playlist. Dates compare as strings in this format.
+    const today = asDate(Date.now());
+    const since = watermark ?? asDate(Date.now() - days * DAY);
     // An album two artists released together answers in both their lists
     const albumIds = new Set(
       albums
@@ -91,7 +136,8 @@ export default async function newReleases({
     );
 
     if (albumIds.size === 0) {
-      logger.info('No release in the window');
+      logger.info('No release since', { since });
+      await leaveMark(access_token, playlistId, playlist.description, today, complete);
       return;
     }
 
@@ -103,7 +149,7 @@ export default async function newReleases({
         group.map((albumId) => `album/${albumId}/tracks`),
       );
       releasedTracksId.push(
-        ...batchData<DeezerTrack>(batch_result).map((track) => track.id),
+        ...batchData<DeezerTrack>(batch_result, incomplete).map((track) => track.id),
       );
     }
 
@@ -139,6 +185,8 @@ export default async function newReleases({
         tracks: tracksToAdd,
       });
     }
+
+    await leaveMark(access_token, playlistId, playlist.description, today, complete);
 
     logger.info('Script ended');
   } catch (e) {

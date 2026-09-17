@@ -153,13 +153,36 @@ Must be an object with the following properties:
   other crons, and reads your favourite artists.
 - `playlistId` is the playlist the releases are poured into. Must belong to the
   access_token account.
-- `days` is how far back a release is still considered new. Optional, default
-  15. It only decides what the cron looks at: nothing expires out of the
-  playlist, so a wider window costs a bigger first run and buys tolerance for
-  the days the scheduler stays silent.
+- `days` is how far back a release is still considered new, and it is only used
+  on a playlist the cron has never touched — after that the mark in the
+  description says where to start. Optional, default 15. It only decides what
+  the cron looks at: nothing expires out of the playlist, so a wider window
+  costs a bigger first run and buys tolerance for the days the scheduler stays
+  silent.
 - `recordTypes` keeps only those kinds of release, among `album`, `compile`,
   `ep` and `single`. Optional, everything by default. `compile` is where
   reissues and best-of live, which are new releases of old music.
+
+#### The mark in the description
+
+A cron that never removes anything still has to know what it has already seen,
+and the playlist forgets a track the moment something takes it out. So each run
+writes down the day it covered, at the end of the playlist description:
+
+```
+Mes sorties [dzr-cron:2026-09-17]
+```
+
+The next run starts there rather than from `days`, which is what keeps a track
+you have played from being poured back in later. It is a date rather than a list
+of ids on purpose: ten characters instead of ten per track, and it cannot
+outgrow the field. Whatever you wrote in the description is kept, and the mark
+is replaced rather than stacked.
+
+A run reads slightly further back than the day it wrote down, because Deezer
+sometimes publishes a release after its own `release_date`. And a run that could
+not read every artist leaves the previous mark alone, rather than claiming to
+have covered artists it never saw.
 
 #### Not there yet
 

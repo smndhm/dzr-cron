@@ -81,3 +81,25 @@ export const nockPostPlaylistIdTracksCapture = (times = 1) => {
     .reply(200);
   return { scope, captured };
 };
+
+// The playlist itself, not its tracks: the path ends at the id, so the match
+// is a function rather than a loose regexp that /tracks would also satisfy.
+const isPlaylistItself = (uri: string) => /^\/playlist\/\d+(\?|$)/.test(uri);
+
+export const nockGetPlaylist = (response: Body = { id: 123456789, description: '' }) =>
+  nock('https://api.deezer.com')
+    .get(isPlaylistItself)
+    .reply(200, response);
+
+// Keeps the description the script wrote back
+export const nockPostPlaylistDescriptionCapture = () => {
+  const captured: { description?: string } = {};
+  const scope = nock('https://api.deezer.com')
+    .post(isPlaylistItself)
+    .query((query) => {
+      captured.description = query.description as string;
+      return true;
+    })
+    .reply(200);
+  return { scope, captured };
+};
