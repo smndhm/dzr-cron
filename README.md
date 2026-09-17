@@ -147,7 +147,7 @@ Must be an objects with the following properties:
 
 ## Running
 
-The workflows are asked to run by a Cloudflare Worker, in `trigger`, because GitHub's own scheduler has never run a single one of them. Their `schedule` lines are still there, doing nothing, for the day it comes back. See [trigger/README.md](trigger/README.md). `Run workflow` on the Actions tab runs a cron by hand, outside of any schedule.
+The workflows run on their own once the token secrets are set. `Run workflow` on the Actions tab runs a cron by hand, outside of its schedule.
 
 `pnpm cron:once` is the command they run. It reads the cron from `CRON_NAME`, `CRON_ACTION` and `CRON_ARGUMENTS`, and the tokens from the environment beside them. Handy to check a token from a terminal without waiting for a schedule.
 
@@ -165,7 +165,7 @@ Each run also writes a summary on its page in the Actions tab, above the log:
 ### Good to know
 
 - GitHub evaluates the workflow schedules in UTC and does not know about daylight saving, so the daily run drifts by an hour between summer and winter. It fires in the early morning, where it does not matter.
-- GitHub's scheduler is best effort and promises no upper bound. It says a scheduled run can be delayed under load, that the start of every hour is its high load window, and that a queued job may be dropped outright rather than merely run late. Every cron here sits in the second half of the hour for that reason, and every script is idempotent, so a late, repeated or skipped run is harmless.
+- GitHub's scheduler is best effort and promises no upper bound. It says a scheduled run can be delayed under load, that the start of every hour is its high load window, and that a queued job may be dropped outright rather than merely run late. Every cron here sits in the second half of the hour for that reason, and every script is idempotent, so a late, repeated or skipped run is harmless. Measured here on the day the crons were written: nothing fired at all for nine hours, then every one of them resumed, one to forty minutes behind its slot. Absence for an afternoon is not a fault to chase.
 - A scheduled workflow is automatically disabled after 60 days without activity in the repository.
 - Actions logs are public on a public repository, and a Deezer request carries the `access_token` in its query string. Three layers answer for it: GitHub masks the secrets it hands to the job, the run registers them again with `::add-mask::`, and the logger censors them itself — by key, and by value wherever a token appears in a string, so a url leaks nothing either.
 - The logs also carry the playlist and track ids of what each run changed, which is public on a public repository.
