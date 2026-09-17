@@ -10,6 +10,8 @@ import {
 } from '../utils/dzr';
 // Import the note a run leaves for the next one
 import { asDate, readWatermark, writeWatermark } from '../utils/watermark';
+// Import the rule it shares with remove-heard
+import { takeOutHeard } from '../utils/heard';
 // Import logger
 import setLogger from '../utils/logger';
 // Import run summary
@@ -116,11 +118,12 @@ export default async function newReleases({
     const watermark = readWatermark(playlist.description);
 
     // WHAT IS IN THE PLAYLIST, AND WHAT HAS BEEN LISTENED TO
-    // Neither is added again. Taking a played track back out is the job of the
-    // remove-heard cron, which runs hourly because the history only holds about
-    // a day of listening. Failing to read the history is not fatal here, but
-    // the day covered must not move: a release the owner has already played
-    // would be poured in by the next run.
+    // Both answers are needed to decide what to pour in, and they are the same
+    // two the removal needs, so this cron takes played tracks out as well. The
+    // remove-heard cron does the same thing hourly, because the history only
+    // holds about a day of listening and this one runs once. Failing to read
+    // the history is not fatal, but the day covered must not move: a release
+    // already played would be poured in by the next run.
     const { data: dzrDestinationPlaylistTracks } = await getPlaylistTracks(
       access_token,
       playlistId,
@@ -142,6 +145,24 @@ export default async function newReleases({
     // unseen, leaving those releases in the playlist for good. Deezer does not
     // say where it stops, so the runs say it instead.
     logger.info('Listening history', { tracks: playedTracksId.size });
+
+    // TAKE OUT WHAT HAS BEEN HEARD
+    // Before anything is discovered, so a run that finds no new release still
+    // does what its name promises to the tracks already there.
+    const tracksToRemove = await takeOutHeard(
+      access_token,
+      playlistId,
+      playlistTracksId,
+      playedTracksId,
+    );
+    if (tracksToRemove.length) {
+      tracksToRemove.forEach((track) => playlistTracksId.delete(track));
+      reportChange(logger, {
+        action: 'tracks-removed',
+        playlist: playlistId,
+        tracks: tracksToRemove,
+      });
+    }
 
     // GET FAVOURITE ARTISTS
     const artists = await getFavouriteArtists(access_token);

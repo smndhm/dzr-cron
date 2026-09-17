@@ -216,8 +216,15 @@ have covered artists it never saw.
 
 #### What has already been heard
 
-A release you have already played is never poured in. Taking one back out is the
-job of the `remove-heard` cron below, which runs far more often than this one.
+A release you have already played is never poured in, and one you have played
+since is taken back out. This cron does the whole of what its name promises: it
+already reads the playlist and the history to decide what to add, and those are
+the same two answers the removal needs, so it costs nothing.
+
+The `remove-heard` cron below does the same removal hourly, because the history
+only holds about a day of listening and this one runs once. Neither replaces the
+other: this one keeps the playlist honest whenever it runs, that one keeps up
+with your listening in between.
 
 Reading the history needs the `listening_history` permission, which the other
 crons do not use. A run that cannot read it leaves the mark where it was, so
@@ -226,9 +233,10 @@ covered while a played one could still be poured in.
 
 ### Remove heard
 
-The other half of the releases playlist, and the reason it is a list of what is
-left to discover rather than a pile: a track leaves it once it appears in the
-listening history, and only then. Nothing is ever taken out for being old.
+The same removal as the releases cron above, on its own schedule: a track leaves
+the playlist once it appears in the listening history, and only then. Nothing is
+ever taken out for being old. Both crons share the rule, so running either one
+does the right thing.
 
 It runs hourly, which is not a taste for freshness. The history holds about a
 day of listening — measured at 93 tracks covering 25 hours — so a daily run

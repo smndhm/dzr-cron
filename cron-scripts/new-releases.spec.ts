@@ -7,6 +7,7 @@ import {
   nockGetPlaylistIdTracks,
   nockGetListeningHistory,
   nockPostPlaylistIdTracksCapture,
+  nockDeletePlaylistIdTracksCapture,
   nockPostPlaylistDescriptionCapture,
   nockPostPlaylistDescriptionError,
   nockRespondError,
@@ -152,6 +153,37 @@ describe('new-releases', () => {
   });
 
   describe('what has already been heard', () => {
+    test('takes a played track out of the playlist', async () => {
+      nockGetPlaylist();
+      holding(101, 102);
+      played(102);
+      nockGetFavouriteArtists();
+      nockGetBatch(batch([]));
+      const { scope, captured } = nockDeletePlaylistIdTracksCapture();
+      nockPostPlaylistDescriptionCapture();
+
+      await newReleases(args);
+
+      expect(scope.isDone()).toBeTruthy();
+      expect(captured.songs).toBe('102');
+    });
+
+    test('takes it out even when there is no new release to pour in', async () => {
+      // Running this cron does the whole of what its name promises, rather
+      // than half of it with the other half in remove-heard
+      nockGetPlaylist();
+      holding(101);
+      played(101);
+      nockGetFavouriteArtists();
+      nockGetBatch(batch([album(1, daysAgo(90))]));
+      const { scope } = nockDeletePlaylistIdTracksCapture();
+      nockPostPlaylistDescriptionCapture();
+
+      await newReleases(args);
+
+      expect(scope.isDone()).toBeTruthy();
+    });
+
     test('never pours back a release that has already been played', async () => {
       nockGetPlaylist();
       emptyPlaylist();

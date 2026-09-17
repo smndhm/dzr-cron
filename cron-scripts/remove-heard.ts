@@ -1,9 +1,7 @@
 // Import DZR utils
-import {
-  getPlaylistTracks,
-  getListeningHistory,
-  deletePlaylistTracks,
-} from '../utils/dzr';
+import { getPlaylistTracks, getListeningHistory } from '../utils/dzr';
+// Import the rule it shares with new-releases
+import { takeOutHeard } from '../utils/heard';
 // Import logger
 import setLogger from '../utils/logger';
 // Import run summary
@@ -11,10 +9,6 @@ import { reportChange } from '../utils/summary';
 const logger = setLogger('remove-heard');
 // Import types
 import { Playlist, DeezerTrack } from '../types';
-
-// The songs parameter of a delete travels in the url, so it is split rather
-// than finding out where Deezer stops reading.
-const DELETE_SIZE = 100;
 
 // Script
 export default async function removeHeard({ playlistId, access_token }: Playlist) {
@@ -43,18 +37,15 @@ export default async function removeHeard({ playlistId, access_token }: Playlist
     // out unseen, leaving those releases in the playlist for good.
     logger.info('Listening history', { tracks: playedTracksId.size });
 
-    const tracksToRemove = playlistTracksId.filter((track) => playedTracksId.has(track));
+    const tracksToRemove = await takeOutHeard(
+      access_token,
+      playlistId,
+      playlistTracksId,
+      playedTracksId,
+    );
     if (tracksToRemove.length === 0) {
       logger.info('Nothing heard yet');
       return;
-    }
-
-    for (let i = 0; i < tracksToRemove.length; i += DELETE_SIZE) {
-      await deletePlaylistTracks(
-        access_token,
-        playlistId,
-        tracksToRemove.slice(i, i + DELETE_SIZE),
-      );
     }
     reportChange(logger, {
       action: 'tracks-removed',
