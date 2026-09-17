@@ -7,8 +7,10 @@ import {
   nockGetPlaylistIdTracks,
   nockPostPlaylistIdTracksCapture,
   nockPostPlaylistDescriptionCapture,
+  nockPostPlaylistDescriptionError,
   nockRespondError,
 } from '../utils/nocks';
+import { getErrorCount } from '../utils/logger';
 
 const asDate = (time: number) => new Date(time).toISOString().slice(0, 10);
 const today = () => asDate(Date.now());
@@ -183,6 +185,32 @@ describe('new-releases', () => {
 
       expect(scope.isDone()).toBeTruthy();
       expect(captured.description).toBe(`Sorties [dzr-cron:${today()}]`);
+    });
+
+    test('is not written at all when the answer carries no description', async () => {
+      // Which is what a wrong field name looks like, and writing then would
+      // replace whatever the owner wrote with a bare mark
+      nockGetPlaylist({ id: 123456789 });
+      nockGetFavouriteArtists();
+      nockGetBatch(batch([]));
+      const { scope } = nockPostPlaylistDescriptionCapture();
+
+      await newReleases(args);
+
+      expect(scope.isDone()).toBeFalsy();
+    });
+
+    test('turns the run red when Deezer refuses the write', async () => {
+      // A 200 carrying an error is how Deezer says no, so nothing throws
+      nockGetPlaylist({ description: 'Sorties' });
+      nockGetFavouriteArtists();
+      nockGetBatch(batch([]));
+      nockPostPlaylistDescriptionError();
+
+      const before = getErrorCount();
+      await newReleases(args);
+
+      expect(getErrorCount()).toBe(before + 1);
     });
 
     test('is left alone when an artist could not be read', async () => {

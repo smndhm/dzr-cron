@@ -31,8 +31,7 @@ export const readWatermark = (description: unknown): string | undefined => {
 };
 
 // The description the run should leave behind: whatever the owner wrote, with
-// exactly one mark at the end of it.
-export const writeWatermark = (description: unknown, day: string): string => {
-  const kept = typeof description === 'string' ? description.replace(MARKER, '') : '';
-  return `${kept} [dzr-cron:${day}]`.trim();
-};
+// exactly one mark at the end of it. The caller decides whether there is a
+// description to write to at all.
+export const writeWatermark = (description: string, day: string): string =>
+  `${description.replace(MARKER, '')} [dzr-cron:${day}]`.trim();

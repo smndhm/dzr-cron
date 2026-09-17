@@ -103,3 +103,10 @@ export const nockPostPlaylistDescriptionCapture = () => {
     .reply(200);
   return { scope, captured };
 };
+
+// Deezer says no with a 200 and an error payload, not with a status
+export const nockPostPlaylistDescriptionError = () =>
+  nock('https://api.deezer.com')
+    .post(isPlaylistItself)
+    .query(() => true)
+    .reply(200, { error: { type: 'Error', message: 'Error', code: 403 } });
