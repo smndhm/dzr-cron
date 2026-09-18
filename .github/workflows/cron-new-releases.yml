@@ -1,14 +1,12 @@
 name: Cron new-releases
 
 on:
-  # Once a day: a release does not appear twice in an afternoon, and this cron
-  # reads every favourite artist, which is the heaviest of the five. 06:48 UTC
-  # is early morning in Paris, and the second half of the hour as the others.
+  # Every four hours: a release is poured in on the next run, and a played track
+  # taken out before it falls out of the listening history. See the README.
   schedule:
-    - cron: '48 6 * * *'
+    - cron: '48 */4 * * *'
   workflow_dispatch:
 
-# Several crons read a playlist another one writes, so they never overlap
 concurrency:
   group: dzr-crons
   cancel-in-progress: false

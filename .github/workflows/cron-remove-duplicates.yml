@@ -1,13 +1,11 @@
 name: Cron remove-duplicates
 
 on:
-  # Once a day, in the middle of the night: 23:26 UTC is 00:26 or 01:26 in
-  # Paris depending on daylight saving, which no listener will notice.
+  # Once a day, in the middle of the night in Paris
   schedule:
     - cron: '26 23 * * *'
   workflow_dispatch:
 
-# Several crons read a playlist another one writes, so they never overlap
 concurrency:
   group: dzr-crons
   cancel-in-progress: false
