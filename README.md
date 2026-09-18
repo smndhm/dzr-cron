@@ -37,7 +37,7 @@ jobs:
 ```
 
 - `cron` names it in the logs.
-- `action` is the script to launch, one of "last-tracks", "sync-playlists" or "remove-duplicates".
+- `action` is the script to launch, one of "last-tracks", "sync-playlists", "new-releases" or "remove-duplicates".
 - `arguments` are the arguments of that action, as JSON. They depend on the action, see below.
 
 `crons.yml` holds the steps every cron shares and never runs on its own. Adding a cron means adding one such file, and nothing else.
@@ -94,7 +94,7 @@ Because my kids wants to have their tracks during "apéro", I updated this cron.
 
 ```json
 {
-  "name": "car-playlist",
+  "cron": "car-playlist",
   "action": "last-tracks",
   "arguments": {
     "access_token": "$MY_ACCESS_TOKEN",
@@ -132,7 +132,7 @@ Ok, new cron.
 
 ```json
 {
-  "name": "kids-playlist",
+  "cron": "kids-playlist",
   "action": "sync-playlists",
   "arguments": [
     { "access_token": "$MY_ACCESS_TOKEN", "playlistId": 1234567890 },
@@ -153,9 +153,9 @@ Must be an array of objects with the following properties:
 
 I follow a few hundred artists and I miss what they put out, because a release
 shows up in an app I open when I think of it. This cron reads every artist in my
-favourites, keeps what they released in the last few days, and pours the tracks
-into one playlist. Nothing is ever removed from it, so a release waits there
-until I have played it.
+favourites, pours the tracks of what they released recently into one playlist,
+and takes a track back out once it turns up in my listening history. So the
+playlist is what is left to discover, and nothing ever leaves it for being old.
 
 Asking Deezer once per artist would be a few hundred requests. The `batch`
 endpoint answers fifty calls at a time, so a run costs about a dozen.
@@ -164,7 +164,7 @@ endpoint answers fifty calls at a time, so a run costs about a dozen.
 
 ```json
 {
-  "name": "new-releases",
+  "cron": "new-releases",
   "action": "new-releases",
   "arguments": {
     "access_token": "$MY_ACCESS_TOKEN",
@@ -180,97 +180,37 @@ endpoint answers fifty calls at a time, so a run costs about a dozen.
 Must be an object with the following properties:
 
 - `access_token` is your Deezer user token. Needs `listening_history` on top of
-  what the other crons ask for, and reads your favourite artists.
+  the permissions the other crons ask for, and reads your favourite artists.
 - `playlistId` is the playlist the releases are poured into. Must belong to the
   access_token account.
-- `days` is how far back a release is still considered new, and it is only used
-  on a playlist the cron has never touched — after that the mark in the
-  description says where to start. Optional, default 15. It only decides what
-  the cron looks at: nothing expires out of the playlist, so a wider window
-  costs a bigger first run and buys tolerance for the days the scheduler stays
-  silent.
+- `days` is how far back a release still counts as new. Optional, default 15,
+  and only used on a playlist this cron has never touched — after that the mark
+  in the description says where to start.
 - `recordTypes` keeps only those kinds of release, among `album`, `compile`,
   `ep` and `single`. Optional, everything by default. `compile` is where
   reissues and best-of live, which are new releases of old music.
 
-#### The mark in the description
+#### Good to know
 
-A cron that never removes anything still has to know what it has already seen,
-and the playlist forgets a track the moment something takes it out. So each run
-writes down the day it covered, at the end of the playlist description:
-
-```
-Mes sorties [dzr-cron:2026-09-17]
-```
-
-The next run starts there rather than from `days`, which is what keeps a track
-you have played from being poured back in later. It is a date rather than a list
-of ids on purpose: ten characters instead of ten per track, and it cannot
-outgrow the field. Whatever you wrote in the description is kept, and the mark
-is replaced rather than stacked.
-
-A run reads slightly further back than the day it wrote down, because Deezer
-sometimes publishes a release after its own `release_date`. And a run that could
-not read every artist leaves the previous mark alone, rather than claiming to
-have covered artists it never saw.
-
-#### A release that is not out yet
-
-Deezer lists an album before it comes out, and most of its tracks do not play
-until the day it does — but not all of them: a single is often out weeks before
-the album it sits on. Dropping everything dated after today would miss it, and
-pouring the whole album in early would fill the playlist with tracks nobody can
-listen to.
-
-So an album dated after today is kept, and its tracks are filtered on whether
-Deezer says they can be played. That filter is trusted here and nowhere else,
-because here being wrong repairs itself: the mark a run leaves can never reach a
-date that has not come, so the album is still inside the window on its release
-day and whatever was held back is poured in then.
-
-On an album already out, the same filter would be final — the mark moves past
-it, nothing looks again — so a track Deezer calls unplayable today is added
-anyway. Losing it for good is worse than carrying it.
-
-That rule earns its keep every Friday. Albums come out at midnight local time,
-which is 22:00 UTC the day before in summer and 23:00 in winter, and Friday is
-release day — Thursday for singles. So a Friday album is on Deezer while this
-cron, which counts days in UTC, still thinks it is Thursday: its `release_date`
-is tomorrow for the first two hours of its life. Refusing anything dated after
-today would hold the week's releases back until two in the morning, on the one
-day that matters. Keeping them and asking Deezer what plays takes them as they
-land.
-
-#### What has already been heard
-
-A release you have already played is never poured in, and one you have played
-since is taken back out. This cron does the whole of what its name promises: it
-already reads the playlist and the history to decide what to add, and those are
-the same two answers the removal needs, so it costs nothing.
-
-The history holds a count rather than a duration: ninety three entries, which at
-my measured rate is twenty five hours, but on a day with music in the background
-is closer to six. Anything that falls out of it unseen stays in the playlist for
-good, so the gap between two runs has to fit inside that. It is the reason this
-cron runs every four hours rather than daily, and it had a cron of its own
-until that schedule made the second one redundant. Six slots a day, honoured
-about one in three, is two or three runs — inside the day the history usually
-holds, tighter than the six hours of a loud one.
-
-Whether that ninety three is a ceiling on the count or a window on the time is
-still open, and it changes the answer — a window would hold twenty five hours
-whatever you played. Every run logs `Listening history {tracks: n}`, so a few
-days of them settle it.
-
-Deezer answers the history fifty at a time and ignores `limit`, saying how many
-there are under `total`. The pages are walked until they are all read: stopping
-at the first would leave everything older than the fiftieth play behind, which
-on that measurement is half a day.
-
-Reading the history needs the `listening_history` permission, which the other
-crons do not use. A run that cannot read it leaves the mark where it was, so
-those releases stay reachable for the next one rather than being declared
-covered while a played one could still be poured in.
+- Each run writes the day it covered at the end of the playlist description, as
+  `Mes sorties [dzr-cron:2026-09-17]`, and the next one starts there. Without
+  it, a release you played would be poured back in, since the playlist forgets a
+  track the moment something removes it. Whatever you wrote there is kept.
+- A release is therefore looked at once. Delete a track by hand and it stays
+  deleted, unless its album is still inside the window: the two days after it
+  came out, or every run until it does for an album not out yet.
+- An album dated after today is kept, but only the tracks Deezer says can be
+  played: that is the single out weeks before its album, and the rest of the
+  record arrives on the day. Albums come out at midnight local time, which is
+  the day before in UTC, so a Friday release is dated tomorrow for its first
+  two hours — refusing those would hold back the whole week.
+- The listening history holds about ninety three plays, a day of listening and
+  closer to six hours on a loud one. A track that falls out of it unseen stays
+  in the playlist for good, which is what sizes the four hour schedule. Every
+  run logs `Listening history {tracks: n}`, so the schedule can be checked
+  against it.
+- A run that could not read the history, or every artist, leaves the mark where
+  it was rather than declaring a day covered it never walked.
 
 ### Remove duplicates
 
@@ -281,7 +221,7 @@ This will delete last duplicate added track.
 
 ```json
 {
-  "name": "remove-duplicates",
+  "cron": "remove-duplicates",
   "action": "remove-duplicates",
   "arguments": {
     "access_token": "$MY_ACCESS_TOKEN",
@@ -332,8 +272,7 @@ hour. Reading them off `.github/workflows`:
 ### Good to know
 
 - GitHub evaluates the workflow schedules in UTC and does not know about daylight saving, so the daily run drifts by an hour between summer and winter. It fires in the early morning, where it does not matter.
-- GitHub's scheduler is best effort and promises no upper bound. It says a scheduled run can be delayed under load, that the start of every hour is its high load window, and that a queued job may be dropped outright rather than merely run late. Every cron here sits in the second half of the hour for that reason, and every script is idempotent, so a late, repeated or skipped run is harmless. Measured here on the day the crons were written: nothing fired at all for nine hours, then every one of them resumed, one to forty minutes behind its slot. Absence for an afternoon is not a fault to chase.
-- Measured again the next day, over the thirteen hours that followed: an hourly cron was served four times out of thirteen slots. The scheduler wakes in bursts — four of them, thirty to eighty minutes long, two and a half to six hours apart — and runs what is due in each. So a schedule here is a request rather than a promise, and a cron that has to happen once a day asks every hour.
+- GitHub's scheduler is best effort and promises no upper bound: a run can be delayed under load, the start of every hour is its high load window, and a queued job may be dropped outright rather than merely run late. Every cron here sits in the second half of the hour for that reason, and every script is idempotent, so a late, repeated or skipped run is harmless. Measured here: nothing fired at all for nine hours, then everything resumed; and over the thirteen hours after that, an hourly cron was served four times out of thirteen slots, in bursts two and a half to six hours apart. So a schedule here is a request rather than a promise — ask more often than you need, and do not chase an afternoon of silence.
 - A scheduled workflow is automatically disabled after 60 days without activity in the repository.
 - Actions logs are public on a public repository, and a Deezer request carries the `access_token` in its query string. Three layers answer for it: GitHub masks the secrets it hands to the job, the run registers them again with `::add-mask::`, and the logger censors them itself — by key, and by value wherever a token appears in a string, so a url leaks nothing either.
 - The logs also carry the playlist and track ids of what each run changed, which is public on a public repository.
