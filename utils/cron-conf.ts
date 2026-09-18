@@ -4,10 +4,9 @@ import {
   SyncPlaylistCron,
   RemoveDuplicatesCron,
   NewReleasesCron,
-  RemoveHeardCron,
 } from '../types';
 
-export type Cron = LastTracksCron | SyncPlaylistCron | RemoveDuplicatesCron | NewReleasesCron | RemoveHeardCron;
+export type Cron = LastTracksCron | SyncPlaylistCron | RemoveDuplicatesCron | NewReleasesCron;
 
 // A cron is defined by the workflow that schedules it, so its definition
 // travels in the environment rather than in a file of its own.
@@ -19,7 +18,7 @@ export const CRON_ARGUMENTS_ENV = 'CRON_ARGUMENTS';
 // so a literal value has to fail loudly instead of being quietly committed.
 const TOKEN_PLACEHOLDER = /^\$[A-Z][A-Z0-9_]*$/;
 
-const ACTIONS = ['last-tracks', 'sync-playlists', 'remove-duplicates', 'new-releases', 'remove-heard'];
+const ACTIONS = ['last-tracks', 'sync-playlists', 'remove-duplicates', 'new-releases'];
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);

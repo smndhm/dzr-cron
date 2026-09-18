@@ -248,30 +248,12 @@ since is taken back out. This cron does the whole of what its name promises: it
 already reads the playlist and the history to decide what to add, and those are
 the same two answers the removal needs, so it costs nothing.
 
-The `remove-heard` cron below does the same removal hourly, because the history
-only holds about a day of listening and this one runs once a day. Neither
-replaces the other: this one keeps the playlist honest whenever it runs, that
-one keeps up with your listening in between.
-
-Reading the history needs the `listening_history` permission, which the other
-crons do not use. A run that cannot read it leaves the mark where it was, so
-those releases stay reachable for the next one rather than being declared
-covered while a played one could still be poured in.
-
-### Remove heard
-
-The same removal as the releases cron above, on its own schedule: a track leaves
-the playlist once it appears in the listening history, and only then. Nothing is
-ever taken out for being old. Both crons do it, so running either one does the
-right thing; this one exists for the cadence, not for the rule.
-
-It runs every four hours, which is not a taste for freshness. The history holds
-a count rather than a duration: ninety three entries, which at my measured rate
-is twenty five hours, but on a day with music in the background is closer to
-six. Anything that falls out of it unseen stays in the playlist for good, so the
-gap between two runs has to fit inside that, with room for the scheduler being
-its usual half hour late. A daily run has no room at all; hourly buys nothing
-but entries in the Actions tab.
+The history holds a count rather than a duration: ninety three entries, which at
+my measured rate is twenty five hours, but on a day with music in the background
+is closer to six. Anything that falls out of it unseen stays in the playlist for
+good, so the gap between two runs has to fit inside that. It is the reason this
+cron runs hourly rather than daily, and it had a cron of its own until the
+hourly schedule made that one redundant.
 
 Whether that ninety three is a ceiling on the count or a window on the time is
 still open, and it changes the answer — a window would hold twenty five hours
@@ -283,26 +265,10 @@ there are under `total`. The pages are walked until they are all read: stopping
 at the first would leave everything older than the fiftieth play behind, which
 on that measurement is half a day.
 
-#### Arguments of the action
-
-```json
-{
-  "name": "remove-heard",
-  "action": "remove-heard",
-  "arguments": {
-    "access_token": "$MY_ACCESS_TOKEN",
-    "playlistId": 1234567890
-  }
-}
-```
-
-#### Arguments
-
-Must be an object with the following properties:
-
-- `access_token` is your Deezer user token. Needs `listening_history`.
-- `playlistId` is the playlist to empty as it gets played. Must belong to the
-  access_token account.
+Reading the history needs the `listening_history` permission, which the other
+crons do not use. A run that cannot read it leaves the mark where it was, so
+those releases stay reachable for the next one rather than being declared
+covered while a played one could still be poured in.
 
 ### Remove duplicates
 
@@ -358,7 +324,6 @@ hour. Reading them off `.github/workflows`:
 | car-playlist | `33 * * * *` | hourly |
 | lucas | `43 * * * *` | hourly |
 | thibaut | `53 * * * *` | hourly |
-| remove-heard | `38 */4 * * *` | every four hours |
 | new-releases | `48 * * * *` | hourly |
 | remove-duplicates | `26 23 * * *` | daily, middle of the night |
 

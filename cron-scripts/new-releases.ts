@@ -120,11 +120,9 @@ export default async function newReleases({
 
     // WHAT IS IN THE PLAYLIST, AND WHAT HAS BEEN LISTENED TO
     // Both answers are needed to decide what to pour in, and they are the same
-    // two the removal needs, so this cron takes played tracks out as well. The
-    // remove-heard cron does the same thing hourly, because the history only
-    // holds about a day of listening and this one runs once. Failing to read
-    // the history is not fatal, but the day covered must not move: a release
-    // already played would be poured in by the next run.
+    // two the removal needs, so this cron takes played tracks out as well.
+    // Failing to read the history is not fatal, but the day covered must not
+    // move: a release already played would be poured in by the next run.
     const { data: dzrDestinationPlaylistTracks } = await getPlaylistTracks(
       access_token,
       playlistId,
