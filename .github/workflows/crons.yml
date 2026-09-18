@@ -1,5 +1,4 @@
-# Steps shared by every cron. Each cron-*.yml file defines one cron and when it
-# runs; this one never runs on its own.
+# Steps shared by every cron, never run on its own
 name: Deezer cron
 
 on:
@@ -35,8 +34,7 @@ jobs:
       - name: Install modules
         run: pnpm install --frozen-lockfile
 
-      # GitHub masks these three on its own. This registers them again, which
-      # also covers a token reaching the logs by another route.
+      # A second layer over GitHub's own masking of these three
       - name: Mask Deezer access tokens
         run: pnpm run --silent cron:mask
         env:
