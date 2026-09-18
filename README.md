@@ -350,13 +350,14 @@ hour. Reading them off `.github/workflows`:
 | lucas | `43 * * * *` | hourly |
 | thibaut | `53 * * * *` | hourly |
 | remove-heard | `38 */4 * * *` | every four hours |
-| new-releases | `48 6 * * *` | daily, early morning |
+| new-releases | `48 * * * *` | hourly |
 | remove-duplicates | `26 23 * * *` | daily, middle of the night |
 
 ### Good to know
 
 - GitHub evaluates the workflow schedules in UTC and does not know about daylight saving, so the daily run drifts by an hour between summer and winter. It fires in the early morning, where it does not matter.
 - GitHub's scheduler is best effort and promises no upper bound. It says a scheduled run can be delayed under load, that the start of every hour is its high load window, and that a queued job may be dropped outright rather than merely run late. Every cron here sits in the second half of the hour for that reason, and every script is idempotent, so a late, repeated or skipped run is harmless. Measured here on the day the crons were written: nothing fired at all for nine hours, then every one of them resumed, one to forty minutes behind its slot. Absence for an afternoon is not a fault to chase.
+- Measured again the next day, over the thirteen hours that followed: an hourly cron was served four times out of thirteen slots. The scheduler wakes in bursts — four of them, thirty to eighty minutes long, two and a half to six hours apart — and runs what is due in each. So a schedule here is a request rather than a promise, and a cron that has to happen once a day asks every hour.
 - A scheduled workflow is automatically disabled after 60 days without activity in the repository.
 - Actions logs are public on a public repository, and a Deezer request carries the `access_token` in its query string. Three layers answer for it: GitHub masks the secrets it hands to the job, the run registers them again with `::add-mask::`, and the logger censors them itself — by key, and by value wherever a token appears in a string, so a url leaks nothing either.
 - The logs also carry the playlist and track ids of what each run changed, which is public on a public repository.

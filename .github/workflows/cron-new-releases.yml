@@ -1,11 +1,16 @@
 name: Cron new-releases
 
 on:
-  # Once a day: a release does not appear twice in an afternoon, and this cron
-  # reads every favourite artist, which is the heaviest of the five. 06:48 UTC
-  # is early morning in Paris, and the second half of the hour as the others.
+  # Hourly, so a release is there before the morning rather than whenever the
+  # scheduler feels like it. Once a day would be enough for what this reads —
+  # a release does not appear twice in an afternoon — but GitHub honours a
+  # fraction of the slots it is given, measured here at four in thirteen, so a
+  # daily slot buys a release two days late and a daily run skipped outright.
+  # Asking every hour is how a best effort scheduler is asked for once a day.
+  # A run that finds nothing new costs a dozen requests, and the mark in the
+  # description means the second run of a day looks at nothing the first did.
   schedule:
-    - cron: '48 6 * * *'
+    - cron: '48 * * * *'
   workflow_dispatch:
 
 # Several crons read a playlist another one writes, so they never overlap
