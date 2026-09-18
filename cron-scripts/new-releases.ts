@@ -9,7 +9,7 @@ import {
   deletePlaylistTracks,
   postPlaylistDescription,
 } from '../utils/dzr';
-// Import the note a run leaves for the next one
+// Import the mark left in the playlist description
 import { asDate, readWatermark, writeWatermark } from '../utils/watermark';
 // Import logger
 import setLogger from '../utils/logger';
@@ -33,8 +33,7 @@ const chunk = <T>(items: T[], size: number): T[][] => {
 };
 
 // Every entry of a batch answers for itself, so one artist Deezer refuses does
-// not lose the forty nine others. Entries come back in the order they were
-// sent, which is what lets a caller tell which album an entry answers for.
+// not lose the forty nine others. Entries keep the order they were sent in.
 const batchEntries = <T>(
   batchResult: { data?: T[], error?: unknown }[],
   onError: () => void,
@@ -53,9 +52,7 @@ const batchData = <T>(
   onError: () => void,
 ): T[] => batchEntries<T>(batchResult, onError).flat();
 
-// Writes down the day this run covered, so the next one starts after it. A run
-// that could not read every artist leaves the previous mark alone rather than
-// claiming ground it never walked.
+// Writes down the day this run covered, so the next one starts after it
 const leaveMark = async (
   access_token: string,
   playlistId: number,
@@ -67,10 +64,8 @@ const leaveMark = async (
     logger.warn('Incomplete run, leaving the mark where it was');
     return;
   }
-  // An absent description is not an empty one: Deezer answers "" for a playlist
-  // without a description, so undefined means this answer is not the shape the
-  // script expects. Writing then would replace whatever the owner wrote with a
-  // bare mark, which is the one thing here that cannot be undone from a log.
+  // Deezer answers "" for a playlist without a description, so anything else is
+  // an answer to leave alone: writing would wipe whatever the owner wrote.
   if (typeof description !== 'string') {
     logger.warn('No description to read, leaving it alone', { playlist: playlistId });
     return;
@@ -79,17 +74,13 @@ const leaveMark = async (
   if (next === description) {
     return;
   }
-  // Deezer answers 200 with an error payload of its own, so a write that did
-  // not happen looks exactly like one that did. The mark is what keeps a track
-  // from being poured back in, so a run that failed to leave it has to say so
-  // rather than pass for green and lose the ground it covered.
+  // Deezer answers 200 with an error payload, so a refused write looks like a
+  // successful one, and this one losing the day covered has to be said.
   const answer = await postPlaylistDescription(access_token, playlistId, next);
   if (answer?.error) {
     logger.error('API Error Response', answer.error);
     return;
   }
-  // Not a reportChange: the summary is about what changed in the playlist, and
-  // the mark is bookkeeping rather than a track the owner would look for.
   logger.info('Mark written', { playlist: playlistId, day });
 };
 
@@ -103,8 +94,7 @@ export default async function newReleases({
   try {
     logger.info('Script started');
 
-    // An artist Deezer refuses is an artist whose releases this run has not
-    // seen, so the day it covers must not move past them.
+    // A run that missed an artist must not claim its day as covered
     let complete = true;
     const incomplete = () => {
       complete = false;
@@ -119,10 +109,7 @@ export default async function newReleases({
     const watermark = readWatermark(playlist.description);
 
     // WHAT IS IN THE PLAYLIST, AND WHAT HAS BEEN LISTENED TO
-    // Both answers are needed to decide what to pour in, and they are the same
-    // two the removal needs, so this cron takes played tracks out as well.
-    // Failing to read the history is not fatal, but the day covered must not
-    // move: a release already played would be poured in by the next run.
+    // The same two answers decide what to pour in and what to take out
     const { data: dzrDestinationPlaylistTracks } = await getPlaylistTracks(
       access_token,
       playlistId,
@@ -139,15 +126,12 @@ export default async function newReleases({
     const playedTracksId = new Set<number>(
       (history.data ?? []).map((track: DeezerTrack) => track.id),
     );
-    // How deep the history goes decides how long this cron may sleep between
-    // runs: listen to more tracks than it holds and the earliest fall out
-    // unseen, leaving those releases in the playlist for good. Deezer does not
-    // say where it stops, so the runs say it instead.
+    // Deezer does not say how deep the history goes, and it decides how long
+    // this cron may sleep, so the runs measure it
     logger.info('Listening history', { tracks: playedTracksId.size });
 
     // TAKE OUT WHAT HAS BEEN HEARD
-    // Before anything is discovered, so a run that finds no new release still
-    // does what its name promises to the tracks already there.
+    // Before the discovery, so a run that finds no release still cleans up
     const tracksToRemove = Array.from(playlistTracksId).filter((track) =>
       playedTracksId.has(track),
     );
@@ -185,14 +169,12 @@ export default async function newReleases({
     }
 
     // KEEP THE RECENT ONES
-    // The mark left by the previous run when there is one, so a release is
-    // looked at once and never again, however long ago it was taken out of the
-    // playlist. Dates compare as strings in this format.
+    // From the mark when there is one, so a release is looked at once and never
+    // again. Dates compare as strings in this format.
     const today = asDate(Date.now());
     const since = watermark ?? asDate(Date.now() - days * DAY);
-    // Each album to look into, and whether Deezer dates it after today. An
-    // album two artists released together answers in both their lists, so a
-    // map also keeps it from being asked for twice.
+    // Album id to whether Deezer dates it after today. A map because an album
+    // two artists released together answers in both their lists.
     const releases = new Map<number, boolean>();
     albums
       .filter(
@@ -209,15 +191,10 @@ export default async function newReleases({
     }
 
     // GET THEIR TRACKS
-    // An album dated after today is one Deezer has published early: the single
-    // off it plays now, the rest of the record only on the day. So its tracks
-    // are taken on what Deezer says can be played, and the others are left for
-    // a later run. That filter is only trusted here, where being wrong repairs
-    // itself: the album is still inside the window on its release day, since
-    // the mark can never move past a date that has not come, so a track wrongly
-    // held back is looked at again and poured in then. On an album already out,
-    // the same filter would be final, and a track Deezer calls unplayable today
-    // would be lost for good rather than merely late.
+    // An album not out yet is one Deezer published early, so only what it says
+    // plays is taken and the rest waits for the day, when the album is still in
+    // the window. Nowhere else: on an album already out the mark moves past it,
+    // and a track wrongly held back would be lost rather than late.
     const releasedTracksId: number[] = [];
     for (const group of chunk(Array.from(releases.keys()), BATCH_SIZE)) {
       const { batch_result } = await getBatch(
@@ -235,8 +212,7 @@ export default async function newReleases({
     }
 
     // ADD WHAT IS NOT THERE YET
-    // A release already played is never poured in, rather than added now and
-    // taken out on the next run.
+    // A played release is never poured in, rather than taken out next run
     const seen = new Set<number>();
     const tracksToAdd = releasedTracksId.filter((track) => {
       if (playlistTracksId.has(track) || playedTracksId.has(track) || seen.has(track)) {
