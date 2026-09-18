@@ -3,7 +3,6 @@ import lastTracks from '../cron-scripts/last-tracks';
 import syncPlaylists from '../cron-scripts/sync-playlists';
 import removeDuplicates from '../cron-scripts/remove-duplicates';
 import newReleases from '../cron-scripts/new-releases';
-import removeHeard from '../cron-scripts/remove-heard';
 // Import types
 import { Cron } from './cron-conf';
 
@@ -18,9 +17,6 @@ export default async function runCron (cron: Cron): Promise<void> {
     break;
   case 'new-releases':
     await newReleases(cron.arguments);
-    break;
-  case 'remove-heard':
-    await removeHeard(cron.arguments);
     break;
   case 'remove-duplicates':
     await removeDuplicates(cron.arguments);

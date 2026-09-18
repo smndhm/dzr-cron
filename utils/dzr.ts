@@ -26,9 +26,8 @@ const request = async (method: string, path: string, params: Params) => {
 export const getPlaylistTracks = (access_token: string, playlistId: number) =>
   request('GET', `/playlist/${playlistId}/tracks`, { access_token, limit });
 
-// The songs travel in the url, so a whole album at a time would eventually find
-// where Deezer stops reading one. Both writes split rather than find out, here
-// rather than in each caller: it is the api that imposes it.
+// The songs travel in the url, so writes split rather than find where Deezer
+// stops reading one. Here rather than in each caller: the api imposes it.
 const SONGS_PER_CALL = 100;
 
 const writeSongs = async (
@@ -51,8 +50,7 @@ export const deletePlaylistTracks = (access_token: string, playlistId: number, s
 export const postPlaylistTracks = (access_token: string, playlistId: number, songs: number[]) =>
   writeSongs('POST', access_token, playlistId, songs);
 
-// The playlist itself rather than its tracks: this is where its description
-// lives, which is where a cron leaves a note for its next run.
+// The playlist itself rather than its tracks, for its description
 export const getPlaylist = (access_token: string, playlistId: number) =>
   request('GET', `/playlist/${playlistId}`, { access_token });
 
@@ -66,13 +64,9 @@ export const postPlaylistDescription = (
 export const getFavouriteArtists = (access_token: string) =>
   request('GET', '/user/me/artists', { access_token, limit });
 
-// What the user has listened to lately, most recent first. This is the one call
-// that needs the listening_history permission.
-//
-// It is also the one that ignores limit: Deezer answers fifty at a time and
-// says how many there are in total, so the pages are walked until they are all
-// read. Reading only the first would silently leave everything older than the
-// fiftieth play behind.
+// What the user has listened to lately, most recent first. Needs the
+// listening_history permission, and ignores limit: Deezer answers fifty at a
+// time under a total, so every page is read rather than only the first.
 const HISTORY_PAGE = 50;
 // A history long enough to need this many pages is one nobody listens to
 const HISTORY_PAGES = 40;
@@ -99,10 +93,8 @@ export const getListeningHistory = async (access_token: string) => {
   return { data };
 };
 
-// Deezer answers a list of calls in one request. This is what makes a cron
-// over every favourite artist affordable: fifty artists in one call rather
-// than one call each. The answer is { batch_result: [...] }, in the order the
-// calls were given.
+// Fifty calls in one request, which is what makes a sweep over every favourite
+// artist affordable. Answers { batch_result: [...] } in the order given.
 export const getBatch = (access_token: string, relativeUrls: string[]) =>
   request('GET', '/batch', {
     access_token,

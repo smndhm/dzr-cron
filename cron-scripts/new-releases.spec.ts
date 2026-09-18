@@ -255,7 +255,7 @@ describe('new-releases', () => {
 
     test('takes it out even when there is no new release to pour in', async () => {
       // Running this cron does the whole of what its name promises, rather
-      // than half of it with the other half in remove-heard
+      // than half of it with the other half in a cron of its own
       nockGetPlaylist();
       holding(101);
       played(101);
