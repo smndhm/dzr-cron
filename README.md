@@ -252,8 +252,10 @@ The history holds a count rather than a duration: ninety three entries, which at
 my measured rate is twenty five hours, but on a day with music in the background
 is closer to six. Anything that falls out of it unseen stays in the playlist for
 good, so the gap between two runs has to fit inside that. It is the reason this
-cron runs hourly rather than daily, and it had a cron of its own until the
-hourly schedule made that one redundant.
+cron runs every four hours rather than daily, and it had a cron of its own
+until that schedule made the second one redundant. Six slots a day, honoured
+about one in three, is two or three runs — inside the day the history usually
+holds, tighter than the six hours of a loud one.
 
 Whether that ninety three is a ceiling on the count or a window on the time is
 still open, and it changes the answer — a window would hold twenty five hours
@@ -324,7 +326,7 @@ hour. Reading them off `.github/workflows`:
 | car-playlist | `33 * * * *` | hourly |
 | lucas | `43 * * * *` | hourly |
 | thibaut | `53 * * * *` | hourly |
-| new-releases | `48 * * * *` | hourly |
+| new-releases | `48 */4 * * *` | every four hours |
 | remove-duplicates | `26 23 * * *` | daily, middle of the night |
 
 ### Good to know

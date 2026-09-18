@@ -1,16 +1,18 @@
 name: Cron new-releases
 
 on:
-  # Hourly, so a release is there before the morning rather than whenever the
-  # scheduler feels like it. Once a day would be enough for what this reads —
-  # a release does not appear twice in an afternoon — but GitHub honours a
-  # fraction of the slots it is given, measured here at four in thirteen, so a
-  # daily slot buys a release two days late and a daily run skipped outright.
-  # Asking every hour is how a best effort scheduler is asked for once a day.
-  # A run that finds nothing new costs a dozen requests, and the mark in the
-  # description means the second run of a day looks at nothing the first did.
+  # Every four hours: six slots a day, of which GitHub honours roughly a third
+  # on the measurement in the README, so two or three runs and up to twelve
+  # hours between them. Two things live inside that gap. A release comes out at
+  # midnight local time and is poured in on the next run, so the morning ones
+  # decide how soon you hear it. And a track played is taken out on the next
+  # run too, which has to happen before it falls out of the listening history —
+  # about a day of listening, closer to six hours on a loud one.
+  # A run costs a dozen requests, so raising this is cheap if that is not
+  # keeping up: the mark in the description means a second run in the same day
+  # looks at nothing the first one covered.
   schedule:
-    - cron: '48 * * * *'
+    - cron: '48 */4 * * *'
   workflow_dispatch:
 
 # Several crons read a playlist another one writes, so they never overlap
