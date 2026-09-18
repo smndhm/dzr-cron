@@ -232,6 +232,15 @@ On an album already out, the same filter would be final — the mark moves past
 it, nothing looks again — so a track Deezer calls unplayable today is added
 anyway. Losing it for good is worse than carrying it.
 
+That rule earns its keep every Friday. Albums come out at midnight local time,
+which is 22:00 UTC the day before in summer and 23:00 in winter, and Friday is
+release day — Thursday for singles. So a Friday album is on Deezer while this
+cron, which counts days in UTC, still thinks it is Thursday: its `release_date`
+is tomorrow for the first two hours of its life. Refusing anything dated after
+today would hold the week's releases back until two in the morning, on the one
+day that matters. Keeping them and asking Deezer what plays takes them as they
+land.
+
 #### What has already been heard
 
 A release you have already played is never poured in, and one you have played
