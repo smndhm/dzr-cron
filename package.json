@@ -2,7 +2,7 @@
   "name": "dzr-cron",
   "version": "3.0.2",
   "description": "Deezer Cron Scripts",
-  "packageManager": "pnpm@12.4.2",
+  "packageManager": "pnpm@12.5.1",
   "scripts": {
     "cron:once": "tsx ./run-once.ts",
     "cron:mask": "tsx ./utils/mask-tokens.ts",
