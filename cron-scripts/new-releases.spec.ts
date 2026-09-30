@@ -50,9 +50,9 @@ const args = { access_token: 'token', playlistId: 123456789 };
 
 // The workflow checks a branch out at .state; here it is a scratch directory,
 // so the tests never touch the repository
-const remembering = (removed: Record<string, string> = {}) => {
-  const file = join(mkdtempSync(join(tmpdir(), 'dzr-state-')), 'removed.json');
-  writeFileSync(file, JSON.stringify(removed));
+const remembering = (poured: Record<string, string> = {}) => {
+  const file = join(mkdtempSync(join(tmpdir(), 'dzr-state-')), 'poured.json');
+  writeFileSync(file, JSON.stringify(poured));
   process.env.DZR_STATE_FILE = file;
   return {
     file,
@@ -253,12 +253,12 @@ describe('new-releases', () => {
     });
   });
 
-  describe('what earlier runs took out', () => {
-    // The bug this file exists for: a played track leaves the playlist, falls
-    // out of the listening history within hours, and its album is still inside
-    // the window, so the next run pours it straight back in. Measured seven
-    // times over two weeks before the ids were written down.
-    test('never pours a track back in once it has been taken out', async () => {
+  describe('what earlier runs poured in', () => {
+    // The bug this file exists for: a track leaves the playlist, falls out of
+    // the listening history within hours, and its album is still inside the
+    // window, so the next run pours it straight back in. Measured seven times
+    // over two weeks before what had been poured in was written down.
+    test('never pours a track in twice', async () => {
       remembering({ 101: today() });
       nockGetPlaylist();
       emptyPlaylist();
@@ -274,31 +274,67 @@ describe('new-releases', () => {
       expect(captured).toEqual(['102']);
     });
 
-    test('writes down what it takes out, at once', async () => {
+    // Taking a track out by hand says you do not want it, and nothing else in
+    // Deezer records that: it is gone from the playlist and it was never played
+    test('never pours back a track taken out by hand', async () => {
       const state = remembering();
       nockGetPlaylist();
-      holding(101, 102);
-      played(102);
+      emptyPlaylist();
+      nothingPlayed();
       nockGetFavouriteArtists();
-      nockGetBatch(batch([]));
-      nockDeletePlaylistIdTracksCapture();
+      nockGetBatch(batch([album(1, today())]));
+      nockGetBatch(batch([playable(101)]));
+      const first = nockPostPlaylistIdTracksCapture();
+      nockPostPlaylistDescriptionCapture();
+
+      await newReleases(args);
+      expect(first.captured).toEqual(['101']);
+
+      // The owner deletes it: the playlist is empty again, nothing was played
+      nockGetPlaylist();
+      emptyPlaylist();
+      nothingPlayed();
+      nockGetFavouriteArtists();
+      nockGetBatch(batch([album(1, today())]));
+      nockGetBatch(batch([playable(101)]));
+      const second = nockPostPlaylistIdTracksCapture();
       nockPostPlaylistDescriptionCapture();
 
       await newReleases(args);
 
-      expect(state.read()).toEqual({ 102: today() });
+      expect(second.scope.isDone()).toBeFalsy();
+      expect(state.read()).toEqual({ 101: today() });
+    });
+
+    test('writes down what it pours in, at once', async () => {
+      const state = remembering();
+      nockGetPlaylist();
+      emptyPlaylist();
+      nothingPlayed();
+      nockGetFavouriteArtists();
+      nockGetBatch(batch([album(1, daysAgo(1))]));
+      nockGetBatch(batch([playable(101), playable(102)]));
+      nockPostPlaylistIdTracksCapture();
+      nockPostPlaylistDescriptionCapture();
+
+      await newReleases(args);
+
+      // The album's release date, not the day it was poured in: that is what
+      // the window compares against
+      expect(state.read()).toEqual({ 101: daysAgo(1), 102: daysAgo(1) });
     });
 
     // An id is only worth keeping while its album can still fall inside the
     // window, and the file would grow for ever otherwise
-    test('forgets an id that fell out of the window', async () => {
+    test('forgets an album that fell out of the window', async () => {
       const state = remembering({ 900: daysAgo(30), 901: daysAgo(1) });
       nockGetPlaylist();
-      holding(101);
-      played(101);
+      emptyPlaylist();
+      nothingPlayed();
       nockGetFavouriteArtists();
-      nockGetBatch(batch([]));
-      nockDeletePlaylistIdTracksCapture();
+      nockGetBatch(batch([album(1, today())]));
+      nockGetBatch(batch([playable(101)]));
+      nockPostPlaylistIdTracksCapture();
       nockPostPlaylistDescriptionCapture();
 
       await newReleases({ ...args, days: 15 });
@@ -306,11 +342,30 @@ describe('new-releases', () => {
       expect(state.read()).toEqual({ 101: today(), 901: daysAgo(1) });
     });
 
+    // A single out before its album is remembered by the album's date, which is
+    // in the future, so it survives every pruning until the album is out. Keyed
+    // on the day it was poured in it would be forgotten first, and poured again.
+    test('keeps a track of an album that is not out yet', async () => {
+      const state = remembering();
+      nockGetPlaylist();
+      emptyPlaylist();
+      nothingPlayed();
+      nockGetFavouriteArtists();
+      nockGetBatch(batch([album(1, inDays(30))]));
+      nockGetBatch(batch([playable(101), unplayable(102)]));
+      nockPostPlaylistIdTracksCapture();
+      nockPostPlaylistDescriptionCapture();
+
+      await newReleases({ ...args, days: 15 });
+
+      expect(state.read()).toEqual({ 101: inDays(30) });
+    });
+
     // A run from a terminal has no branch checked out. It works as it did
     // before rather than refusing to run, and says so.
     test('warns rather than stops when there is nowhere to write', async () => {
       resetErrorCount();
-      process.env.DZR_STATE_FILE = '/nowhere/at/all/removed.json';
+      process.env.DZR_STATE_FILE = '/nowhere/at/all/poured.json';
       nockGetPlaylist();
       emptyPlaylist();
       nothingPlayed();
