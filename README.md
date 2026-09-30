@@ -196,6 +196,14 @@ Must be an object with the following properties:
   `Mes sorties [dzr-cron:2026-09-17]`, and the next one starts there. Without
   it, a release you played would be poured back in, since the playlist forgets a
   track the moment something removes it. Whatever you wrote there is kept.
+- A track taken out is written down, as an id and a day, on the orphan
+  `dzr-cron-state` branch. Nothing else can remember it: the playlist forgets it
+  the moment it leaves, the listening history forgets the play within hours, and
+  its album stays inside the window for two more days — which is how the same
+  track came back seven times in two weeks, measured in the run logs. The
+  description would have been the place for those ids, and it is too small:
+  Deezer keeps 255 characters of it and drops the rest without answering an
+  error, in the query string and in the POST body alike.
 - A release is therefore looked at once. Delete a track by hand and it stays
   deleted, unless its album is still inside the window: the two days after it
   came out, or every run until it does for an album not out yet.

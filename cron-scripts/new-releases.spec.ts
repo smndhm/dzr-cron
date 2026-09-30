@@ -1,3 +1,6 @@
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import newReleases from './new-releases';
 import {
   cleanAll,
@@ -12,7 +15,7 @@ import {
   nockPostPlaylistDescriptionError,
   nockRespondError,
 } from '../utils/nocks';
-import { getErrorCount } from '../utils/logger';
+import { getErrorCount, resetErrorCount } from '../utils/logger';
 
 const asDate = (time: number) => new Date(time).toISOString().slice(0, 10);
 const today = () => asDate(Date.now());
@@ -45,9 +48,22 @@ const played = (...ids: number[]) =>
 
 const args = { access_token: 'token', playlistId: 123456789 };
 
+// The workflow checks a branch out at .state; here it is a scratch directory,
+// so the tests never touch the repository
+const remembering = (removed: Record<string, string> = {}) => {
+  const file = join(mkdtempSync(join(tmpdir(), 'dzr-state-')), 'removed.json');
+  writeFileSync(file, JSON.stringify(removed));
+  process.env.DZR_STATE_FILE = file;
+  return {
+    file,
+    read: () => JSON.parse(readFileSync(file, 'utf8')) as Record<string, string>,
+  };
+};
+
 describe('new-releases', () => {
   afterEach(() => {
     cleanAll();
+    delete process.env.DZR_STATE_FILE;
   });
 
   describe('pouring releases in', () => {
@@ -234,6 +250,80 @@ describe('new-releases', () => {
       await newReleases(args);
 
       expect(captured).toEqual(['101']);
+    });
+  });
+
+  describe('what earlier runs took out', () => {
+    // The bug this file exists for: a played track leaves the playlist, falls
+    // out of the listening history within hours, and its album is still inside
+    // the window, so the next run pours it straight back in. Measured seven
+    // times over two weeks before the ids were written down.
+    test('never pours a track back in once it has been taken out', async () => {
+      remembering({ 101: today() });
+      nockGetPlaylist();
+      emptyPlaylist();
+      nothingPlayed();
+      nockGetFavouriteArtists();
+      nockGetBatch(batch([album(1, today())]));
+      nockGetBatch(batch([playable(101), playable(102)]));
+      const { captured } = nockPostPlaylistIdTracksCapture();
+      nockPostPlaylistDescriptionCapture();
+
+      await newReleases(args);
+
+      expect(captured).toEqual(['102']);
+    });
+
+    test('writes down what it takes out, at once', async () => {
+      const state = remembering();
+      nockGetPlaylist();
+      holding(101, 102);
+      played(102);
+      nockGetFavouriteArtists();
+      nockGetBatch(batch([]));
+      nockDeletePlaylistIdTracksCapture();
+      nockPostPlaylistDescriptionCapture();
+
+      await newReleases(args);
+
+      expect(state.read()).toEqual({ 102: today() });
+    });
+
+    // An id is only worth keeping while its album can still fall inside the
+    // window, and the file would grow for ever otherwise
+    test('forgets an id that fell out of the window', async () => {
+      const state = remembering({ 900: daysAgo(30), 901: daysAgo(1) });
+      nockGetPlaylist();
+      holding(101);
+      played(101);
+      nockGetFavouriteArtists();
+      nockGetBatch(batch([]));
+      nockDeletePlaylistIdTracksCapture();
+      nockPostPlaylistDescriptionCapture();
+
+      await newReleases({ ...args, days: 15 });
+
+      expect(state.read()).toEqual({ 101: today(), 901: daysAgo(1) });
+    });
+
+    // A run from a terminal has no branch checked out. It works as it did
+    // before rather than refusing to run, and says so.
+    test('warns rather than stops when there is nowhere to write', async () => {
+      resetErrorCount();
+      process.env.DZR_STATE_FILE = '/nowhere/at/all/removed.json';
+      nockGetPlaylist();
+      emptyPlaylist();
+      nothingPlayed();
+      nockGetFavouriteArtists();
+      nockGetBatch(batch([album(1, today())]));
+      nockGetBatch(batch([playable(101)]));
+      const { captured } = nockPostPlaylistIdTracksCapture();
+      nockPostPlaylistDescriptionCapture();
+
+      await newReleases(args);
+
+      expect(captured).toEqual(['101']);
+      expect(getErrorCount()).toBe(0);
     });
   });
 
