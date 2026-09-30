@@ -11,8 +11,8 @@ import {
 } from '../utils/dzr';
 // Import the mark left in the playlist description
 import { asDate, readWatermark, writeWatermark } from '../utils/watermark';
-// Import the ids earlier runs took out
-import { hasState, readRemoved, pruneRemoved, writeRemoved } from '../utils/state';
+// Import the ids earlier runs poured in
+import { hasState, readPoured, prunePoured, writePoured } from '../utils/state';
 // Import logger
 import setLogger from '../utils/logger';
 // Import run summary
@@ -20,7 +20,7 @@ import { reportChange } from '../utils/summary';
 const logger = setLogger('new-releases');
 // Import types
 import { Playlist, DeezerTrack, DeezerAlbum, DeezerArtist } from '../types';
-import { Removed } from '../utils/state';
+import { Poured } from '../utils/state';
 
 // Deezer answers at most fifty calls in one batch
 const BATCH_SIZE = 50;
@@ -129,19 +129,20 @@ export default async function newReleases({
       dzrDestinationPlaylistTracks.map((track: DeezerTrack) => track.id),
     );
 
-    // WHAT EARLIER RUNS TOOK OUT
-    // The playlist forgets a track the moment it is removed, and the history
-    // forgets the play within hours, so without this a played track comes back.
-    let removed: Removed = {};
+    // WHAT EARLIER RUNS POURED IN
+    // The playlist forgets a track the moment anything takes it out, whether a
+    // play or the owner, and the history forgets the play within hours. Without
+    // this, the track reads as new and comes straight back.
+    let poured: Poured = {};
     const remembering = hasState();
     if (remembering) {
       try {
-        removed = readRemoved();
+        poured = readPoured();
       } catch (e) {
         logger.error(e);
       }
     } else {
-      logger.warn('No state directory, a played track may be poured back in');
+      logger.warn('No state directory, a track already poured in may come back');
     }
 
     const history = await getListeningHistory(access_token);
@@ -169,19 +170,6 @@ export default async function newReleases({
         playlist: playlistId,
         tracks: tracksToRemove,
       });
-      // Written down at once, before anything further can fail: a removal this
-      // run forgets is a track the next run pours straight back in.
-      if (remembering) {
-        tracksToRemove.forEach((track) => {
-          removed[track] = today;
-        });
-        try {
-          removed = pruneRemoved(removed, keepSince);
-          writeRemoved(removed);
-        } catch (e) {
-          logger.error(e);
-        }
-      }
     }
 
     // GET FAVOURITE ARTISTS
@@ -208,16 +196,17 @@ export default async function newReleases({
     }
 
     // KEEP THE RECENT ONES
-    // Album id to whether Deezer dates it after today. A map because an album
-    // two artists released together answers in both their lists.
-    const releases = new Map<number, boolean>();
+    // Album id to its release date. A map because an album two artists released
+    // together answers in both their lists, and because the date is what a
+    // poured track is remembered by.
+    const releases = new Map<number, string>();
     albums
       .filter(
         (album) =>
           album.release_date >= since &&
           (!recordTypes || recordTypes.includes(album.record_type)),
       )
-      .forEach((album) => releases.set(album.id, album.release_date > today));
+      .forEach((album) => releases.set(album.id, album.release_date));
 
     if (releases.size === 0) {
       logger.info('No release since', { since });
@@ -230,37 +219,31 @@ export default async function newReleases({
     // plays is taken and the rest waits for the day, when the album is still in
     // the window. Nowhere else: on an album already out the mark moves past it,
     // and a track wrongly held back would be lost rather than late.
-    const releasedTracksId: number[] = [];
+    // Each released track, with the date of the album it came from
+    const releasedTracks = new Map<number, string>();
     for (const group of chunk(Array.from(releases.keys()), BATCH_SIZE)) {
       const { batch_result } = await getBatch(
         access_token,
         group.map((albumId) => `album/${albumId}/tracks`),
       );
       batchEntries<DeezerTrack>(batch_result, incomplete).forEach((tracks, index) => {
-        const notOutYet = releases.get(group[index]);
-        releasedTracksId.push(
-          ...tracks
-            .filter((track) => !notOutYet || track.readable)
-            .map((track) => track.id),
-        );
+        const releaseDate = releases.get(group[index]) ?? today;
+        const notOutYet = releaseDate > today;
+        tracks
+          .filter((track) => !notOutYet || track.readable)
+          .forEach((track) => releasedTracks.set(track.id, releaseDate));
       });
     }
 
-    // ADD WHAT IS NOT THERE YET
-    // A played release is never poured in, rather than taken out next run
-    const seen = new Set<number>();
-    const tracksToAdd = releasedTracksId.filter((track) => {
-      if (
-        playlistTracksId.has(track) ||
-        playedTracksId.has(track) ||
-        removed[track] !== undefined ||
-        seen.has(track)
-      ) {
-        return false;
-      }
-      seen.add(track);
-      return true;
-    });
+    // ADD WHAT WAS NEVER POURED IN
+    // A played release is never poured in, rather than taken out next run. One
+    // already poured in is never poured again, however it left the playlist.
+    const tracksToAdd = Array.from(releasedTracks.keys()).filter(
+      (track) =>
+        !playlistTracksId.has(track) &&
+        !playedTracksId.has(track) &&
+        poured[track] === undefined,
+    );
 
     if (tracksToAdd.length) {
       await postPlaylistTracks(access_token, playlistId, tracksToAdd);
@@ -269,6 +252,18 @@ export default async function newReleases({
         playlist: playlistId,
         tracks: tracksToAdd,
       });
+      // Written down at once: what this run forgets to say it poured in, the
+      // next one pours in again the moment the owner takes it out.
+      if (remembering) {
+        tracksToAdd.forEach((track) => {
+          poured[track] = releasedTracks.get(track) ?? today;
+        });
+        try {
+          writePoured(prunePoured(poured, keepSince));
+        } catch (e) {
+          logger.error(e);
+        }
+      }
     }
 
     await leaveMark(access_token, playlistId, playlist.description, today, complete);

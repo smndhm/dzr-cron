@@ -196,17 +196,23 @@ Must be an object with the following properties:
   `Mes sorties [dzr-cron:2026-09-17]`, and the next one starts there. Without
   it, a release you played would be poured back in, since the playlist forgets a
   track the moment something removes it. Whatever you wrote there is kept.
-- A track taken out is written down, as an id and a day, on the orphan
-  `dzr-cron-state` branch. Nothing else can remember it: the playlist forgets it
-  the moment it leaves, the listening history forgets the play within hours, and
-  its album stays inside the window for two more days — which is how the same
-  track came back seven times in two weeks, measured in the run logs. The
-  description would have been the place for those ids, and it is too small:
-  Deezer keeps 255 characters of it and drops the rest without answering an
-  error, in the query string and in the POST body alike.
-- A release is therefore looked at once. Delete a track by hand and it stays
-  deleted, unless its album is still inside the window: the two days after it
-  came out, or every run until it does for an album not out yet.
+- What has been poured in is written down, on the orphan `dzr-cron-state`
+  branch: a track id and the release date of its album. It is the rule itself —
+  a release is poured in once and never again — and nothing in Deezer can hold
+  it. The playlist forgets a track the moment anything takes it out, the
+  listening history forgets the play within hours, and the album stays inside
+  the window for two more days, which is how the same track came back seven
+  times in two weeks, measured in the run logs. The description would have been
+  the place for those ids and it is too small: Deezer keeps 255 characters of it
+  and drops the rest without answering an error, in the query string and in the
+  POST body alike.
+- So a track you delete by hand stays deleted, whether you played it or not.
+  Taking it out is how you say you do not want it, and nothing else records
+  that.
+- An id is remembered by its album's release date rather than by the day it was
+  poured in, because that is the date the window compares against. A single out
+  weeks before its album is kept until the album is out, where the day it was
+  poured in would have been forgotten first, and the single poured in again.
 - An album dated after today is kept, but only the tracks Deezer says can be
   played: that is the single out weeks before its album, and the rest of the
   record arrives on the day. Albums come out at midnight local time, which is
