@@ -21,8 +21,22 @@ jobs:
   run-cron:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # new-releases writes down the ids it took out, on a branch of its own
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v7
+
+      # The playlist cannot remember what it no longer holds, and the
+      # description holds 255 characters. This branch holds nothing but the file
+      # of ids, and no workflow listens to it, so a commit here runs nothing.
+      - name: Read what earlier runs took out
+        if: inputs.action == 'new-releases'
+        uses: actions/checkout@v7
+        with:
+          ref: dzr-cron-state
+          path: .state
+          fetch-depth: 1
 
       - uses: pnpm/action-setup@v6
 
@@ -55,3 +69,20 @@ jobs:
           CRON_NAME: ${{ inputs.cron }}
           CRON_ACTION: ${{ inputs.action }}
           CRON_ARGUMENTS: ${{ inputs.arguments }}
+
+      # always(), because a run that took tracks out and then failed on
+      # something else still has to say so: what it forgets, the next run pours
+      # straight back in.
+      - name: Write down what this run took out
+        if: ${{ always() && inputs.action == 'new-releases' }}
+        working-directory: .state
+        run: |
+          git add --all
+          if git diff --quiet --cached; then
+            echo 'Nothing new to remember.'
+            exit 0
+          fi
+          git -c user.name='github-actions[bot]' \
+              -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+              commit -m 'chore(state): what new-releases took out'
+          git push || (git pull --rebase && git push)
