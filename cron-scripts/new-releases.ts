@@ -11,6 +11,8 @@ import {
 } from '../utils/dzr';
 // Import the mark left in the playlist description
 import { asDate, readWatermark, writeWatermark } from '../utils/watermark';
+// Import the ids earlier runs took out
+import { hasState, readRemoved, pruneRemoved, writeRemoved } from '../utils/state';
 // Import logger
 import setLogger from '../utils/logger';
 // Import run summary
@@ -18,6 +20,7 @@ import { reportChange } from '../utils/summary';
 const logger = setLogger('new-releases');
 // Import types
 import { Playlist, DeezerTrack, DeezerAlbum, DeezerArtist } from '../types';
+import { Removed } from '../utils/state';
 
 // Deezer answers at most fifty calls in one batch
 const BATCH_SIZE = 50;
@@ -107,6 +110,14 @@ export default async function newReleases({
       return;
     }
     const watermark = readWatermark(playlist.description);
+    // From the mark when there is one, so a release is looked at once and never
+    // again. Dates compare as strings in this format.
+    const today = asDate(Date.now());
+    // The furthest back any run can look. It is also how long an id is worth
+    // remembering: the whole window rather than the two days a mark leaves,
+    // since a mark that could not be written sends the next run back here.
+    const keepSince = asDate(Date.now() - days * DAY);
+    const since = watermark ?? keepSince;
 
     // WHAT IS IN THE PLAYLIST, AND WHAT HAS BEEN LISTENED TO
     // The same two answers decide what to pour in and what to take out
@@ -117,6 +128,21 @@ export default async function newReleases({
     const playlistTracksId = new Set<number>(
       dzrDestinationPlaylistTracks.map((track: DeezerTrack) => track.id),
     );
+
+    // WHAT EARLIER RUNS TOOK OUT
+    // The playlist forgets a track the moment it is removed, and the history
+    // forgets the play within hours, so without this a played track comes back.
+    let removed: Removed = {};
+    const remembering = hasState();
+    if (remembering) {
+      try {
+        removed = readRemoved();
+      } catch (e) {
+        logger.error(e);
+      }
+    } else {
+      logger.warn('No state directory, a played track may be poured back in');
+    }
 
     const history = await getListeningHistory(access_token);
     if (history.error) {
@@ -143,6 +169,19 @@ export default async function newReleases({
         playlist: playlistId,
         tracks: tracksToRemove,
       });
+      // Written down at once, before anything further can fail: a removal this
+      // run forgets is a track the next run pours straight back in.
+      if (remembering) {
+        tracksToRemove.forEach((track) => {
+          removed[track] = today;
+        });
+        try {
+          removed = pruneRemoved(removed, keepSince);
+          writeRemoved(removed);
+        } catch (e) {
+          logger.error(e);
+        }
+      }
     }
 
     // GET FAVOURITE ARTISTS
@@ -169,10 +208,6 @@ export default async function newReleases({
     }
 
     // KEEP THE RECENT ONES
-    // From the mark when there is one, so a release is looked at once and never
-    // again. Dates compare as strings in this format.
-    const today = asDate(Date.now());
-    const since = watermark ?? asDate(Date.now() - days * DAY);
     // Album id to whether Deezer dates it after today. A map because an album
     // two artists released together answers in both their lists.
     const releases = new Map<number, boolean>();
@@ -215,7 +250,12 @@ export default async function newReleases({
     // A played release is never poured in, rather than taken out next run
     const seen = new Set<number>();
     const tracksToAdd = releasedTracksId.filter((track) => {
-      if (playlistTracksId.has(track) || playedTracksId.has(track) || seen.has(track)) {
+      if (
+        playlistTracksId.has(track) ||
+        playedTracksId.has(track) ||
+        removed[track] !== undefined ||
+        seen.has(track)
+      ) {
         return false;
       }
       seen.add(track);
