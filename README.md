@@ -290,7 +290,7 @@ hour. Reading them off `.github/workflows`:
 - A scheduled workflow is automatically disabled after 60 days without activity in the repository.
 - Actions logs are public on a public repository, and a Deezer request carries the `access_token` in its query string. Three layers answer for it: GitHub masks the secrets it hands to the job, the run registers them again with `::add-mask::`, and the logger censors them itself — by key, and by value wherever a token appears in a string, so a url leaks nothing either.
 - The logs also carry the playlist and track ids of what each run changed, which is public on a public repository.
-- The job turns red as soon as a script logs an error, so a revoked token does not fail silently day after day.
+- The job turns red as soon as a script logs an error, so a revoked token does not fail silently day after day. A gateway timing out in front of Deezer is not one of those: `504`, `503`, `502`, `500`, `429` and a dropped connection are sent again once, and a batch Deezer still gives up on leaves the run going with the day covered unmoved, so the next run reads those artists again. Measured before that: nine runs in a hundred died on a `504`, always on the batch asking for the albums of fifty artists.
 
 ## TODO
 

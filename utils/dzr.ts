@@ -5,6 +5,25 @@ const limit = 2000;
 
 type Params = Record<string, string | number>;
 
+// Deezer takes more than fifteen seconds over a batch of fifty artists often
+// enough to answer 504: nine runs in a hundred died that way. These statuses,
+// and a connection that drops, say nothing about the request itself, so it is
+// sent again. Once only — a gateway that times out twice in a second is not
+// going to answer on the third try, and the next run is four hours away with
+// the mark holding its place, which is the real second chance.
+const TRANSIENT = new Set([429, 500, 502, 503, 504]);
+const ATTEMPTS = 2;
+
+// Tests set it to nothing rather than wait
+const retryDelay = (env: NodeJS.ProcessEnv = process.env): number =>
+  Number(env.DZR_RETRY_DELAY_MS ?? 1000);
+
+const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// Thrown where the caller may decide to carry on without this answer, which no
+// other failure allows: a refused token has to stop the run.
+export class TransientError extends Error {}
+
 // Deezer answers 200 with an `error` payload for its own errors, so only a
 // transport or status failure is thrown from here.
 const request = async (method: string, path: string, params: Params) => {
@@ -13,14 +32,36 @@ const request = async (method: string, path: string, params: Params) => {
     url.searchParams.set(key, String(value));
   });
 
-  const response = await fetch(url, { method });
-  if (!response.ok) {
-    throw new Error(`Deezer answered ${response.status} ${response.statusText}.`);
-  }
+  for (let attempt = 1; ; attempt += 1) {
+    const last = attempt === ATTEMPTS;
+    let response: Response;
+    try {
+      response = await fetch(url, { method });
+    } catch (e) {
+      if (last) {
+        throw new TransientError(`Deezer could not be reached: ${String(e)}`);
+      }
+      await pause(retryDelay());
+      continue;
+    }
 
-  // The write endpoints can answer with an empty body
-  const body = await response.text();
-  return body ? JSON.parse(body) : undefined;
+    if (TRANSIENT.has(response.status)) {
+      if (last) {
+        throw new TransientError(
+          `Deezer answered ${response.status} ${response.statusText}, twice.`,
+        );
+      }
+      await pause(retryDelay());
+      continue;
+    }
+    if (!response.ok) {
+      throw new Error(`Deezer answered ${response.status} ${response.statusText}.`);
+    }
+
+    // The write endpoints can answer with an empty body
+    const body = await response.text();
+    return body ? JSON.parse(body) : undefined;
+  }
 };
 
 export const getPlaylistTracks = (access_token: string, playlistId: number) =>

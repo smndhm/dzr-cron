@@ -14,6 +14,7 @@ import {
   nockPostPlaylistDescriptionCapture,
   nockPostPlaylistDescriptionError,
   nockRespondError,
+  nockStatus,
 } from '../utils/nocks';
 import { getErrorCount, resetErrorCount } from '../utils/logger';
 
@@ -61,6 +62,15 @@ const remembering = (poured: Record<string, string> = {}) => {
 };
 
 describe('new-releases', () => {
+  // The retry would otherwise hold the gateway test for a second
+  beforeAll(() => {
+    process.env.DZR_RETRY_DELAY_MS = '0';
+  });
+
+  afterAll(() => {
+    delete process.env.DZR_RETRY_DELAY_MS;
+  });
+
   afterEach(() => {
     cleanAll();
     delete process.env.DZR_STATE_FILE;
@@ -250,6 +260,46 @@ describe('new-releases', () => {
       await newReleases(args);
 
       expect(captured).toEqual(['101']);
+    });
+  });
+
+  describe('when Deezer gives up', () => {
+    // Nine runs in a hundred died on a 504 from the gateway, on the batch
+    // asking for the albums of fifty artists. The run is worth finishing: the
+    // played tracks still go, and the day covered stays where it was so the
+    // next run reads those artists again.
+    test('finishes the run and leaves the day covered alone', async () => {
+      resetErrorCount();
+      nockGetPlaylist();
+      holding(101, 102);
+      played(102);
+      nockGetFavouriteArtists();
+      nockStatus(/\/batch/, 504, 2);
+      const removal = nockDeletePlaylistIdTracksCapture();
+      const mark = nockPostPlaylistDescriptionCapture();
+
+      await newReleases(args);
+
+      expect(removal.scope.isDone()).toBeTruthy();
+      expect(mark.scope.isDone()).toBeFalsy();
+      // A gateway is not an error worth turning the run red over
+      expect(getErrorCount()).toBe(0);
+    });
+
+    // A refused token is not transient, and carrying on would hide it
+    test('stops on anything that is not a gateway', async () => {
+      resetErrorCount();
+      nockGetPlaylist();
+      emptyPlaylist();
+      nothingPlayed();
+      nockGetFavouriteArtists();
+      nockStatus(/\/batch/, 403);
+      const mark = nockPostPlaylistDescriptionCapture();
+
+      await newReleases(args);
+
+      expect(mark.scope.isDone()).toBeFalsy();
+      expect(getErrorCount()).toBe(1);
     });
   });
 

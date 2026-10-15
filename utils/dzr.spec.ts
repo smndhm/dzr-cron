@@ -1,5 +1,7 @@
+import nock from 'nock';
 import { 
-  getPlaylistTracks, 
+  TransientError,
+  getPlaylistTracks,
   deletePlaylistTracks,
   postPlaylistTracks,
   postPlaylistTracksOrder
@@ -10,10 +12,20 @@ import {
   nockDeletePlaylistIdTracks,
   nockPostPlaylistIdTracks,
   nockThrowError,
-  nockRespondError
+  nockRespondError,
+  nockStatus
 } from './nocks';
 
 describe('dzr', () => {
+  // The retry would otherwise hold every one of these tests for a second
+  beforeAll(() => {
+    process.env.DZR_RETRY_DELAY_MS = '0';
+  });
+
+  afterAll(() => {
+    delete process.env.DZR_RETRY_DELAY_MS;
+  });
+
   afterEach(() => {
     cleanAll();
   });
@@ -49,12 +61,44 @@ describe('dzr', () => {
     expect(mockPostPlaylistIdTracks.isDone()).toBeTruthy();
   });    
 	
-  test('Should throw an error', async () => {
-    nockThrowError(/\/playlist\/\d+\/tracks/);
-    await expect(getPlaylistTracks('token', 123456789)).rejects.toMatchObject({
-      message: 'Error',
-      code: 500,
-    });
+  // Nine runs in a hundred died on a 504 from the gateway in front of Deezer,
+  // which says nothing about the request itself
+  test('sends a request again when the gateway times out', async () => {
+    const timeout = nockStatus(/\/playlist\/\d+\/tracks/, 504);
+    const second = nockGetPlaylistIdTracks();
+
+    await expect(getPlaylistTracks('token', 123456789)).resolves.toBeDefined();
+
+    expect(timeout.isDone()).toBeTruthy();
+    expect(second.isDone()).toBeTruthy();
+  });
+
+  // Once only: a gateway that times out twice in a second will not answer on a
+  // third try, and the next run is hours away with the mark holding its place
+  test('gives up after one more try, saying it may be worth carrying on', async () => {
+    const timeouts = nockStatus(/\/playlist\/\d+\/tracks/, 504, 2);
+
+    await expect(getPlaylistTracks('token', 123456789)).rejects.toThrow(TransientError);
+
+    expect(timeouts.isDone()).toBeTruthy();
+  });
+
+  test('sends a request again when the connection drops', async () => {
+    nockThrowError(/\/playlist\/\d+\/tracks/, 2);
+    await expect(getPlaylistTracks('token', 123456789)).rejects.toThrow(TransientError);
+  });
+
+  // A refused token is not transient: trying again wastes a run, and the caller
+  // must not carry on without the answer
+  test('does not send a refused request again', async () => {
+    const refused = nockStatus(/\/playlist\/\d+\/tracks/, 403);
+
+    const failed = getPlaylistTracks('token', 123456789);
+    await expect(failed).rejects.toThrow('Deezer answered 403');
+    await expect(failed).rejects.not.toThrow(TransientError);
+
+    expect(refused.isDone()).toBeTruthy();
+    expect(nock.isDone()).toBeTruthy();
   });
 
   test('Should respond an error', async () => {
