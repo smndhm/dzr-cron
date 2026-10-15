@@ -1,5 +1,6 @@
 // Import DZR utils
 import {
+  TransientError,
   getFavouriteArtists,
   getBatch,
   getPlaylist,
@@ -186,13 +187,25 @@ export default async function newReleases({
     }
 
     // GET THEIR ALBUMS, FIFTY ARTISTS AT A TIME
+    // A batch Deezer gives up on is fifty artists this run has not seen, which
+    // is what incomplete() already means: the day covered does not move, and
+    // the next run reads them again. The other batches are still worth having,
+    // where letting it through would lose the whole run over one gateway.
     const albums: DeezerAlbum[] = [];
     for (const group of chunk(artistIds, BATCH_SIZE)) {
-      const { batch_result } = await getBatch(
-        access_token,
-        group.map((artistId) => `artist/${artistId}/albums`),
-      );
-      albums.push(...batchData<DeezerAlbum>(batch_result, incomplete));
+      try {
+        const { batch_result } = await getBatch(
+          access_token,
+          group.map((artistId) => `artist/${artistId}/albums`),
+        );
+        albums.push(...batchData<DeezerAlbum>(batch_result, incomplete));
+      } catch (e) {
+        if (!(e instanceof TransientError)) {
+          throw e;
+        }
+        logger.warn('Gave up on a batch of artists', { artists: group.length, error: String(e) });
+        incomplete();
+      }
     }
 
     // KEEP THE RECENT ONES
@@ -222,17 +235,25 @@ export default async function newReleases({
     // Each released track, with the date of the album it came from
     const releasedTracks = new Map<number, string>();
     for (const group of chunk(Array.from(releases.keys()), BATCH_SIZE)) {
-      const { batch_result } = await getBatch(
-        access_token,
-        group.map((albumId) => `album/${albumId}/tracks`),
-      );
-      batchEntries<DeezerTrack>(batch_result, incomplete).forEach((tracks, index) => {
-        const releaseDate = releases.get(group[index]) ?? today;
-        const notOutYet = releaseDate > today;
-        tracks
-          .filter((track) => !notOutYet || track.readable)
-          .forEach((track) => releasedTracks.set(track.id, releaseDate));
-      });
+      try {
+        const { batch_result } = await getBatch(
+          access_token,
+          group.map((albumId) => `album/${albumId}/tracks`),
+        );
+        batchEntries<DeezerTrack>(batch_result, incomplete).forEach((tracks, index) => {
+          const releaseDate = releases.get(group[index]) ?? today;
+          const notOutYet = releaseDate > today;
+          tracks
+            .filter((track) => !notOutYet || track.readable)
+            .forEach((track) => releasedTracks.set(track.id, releaseDate));
+        });
+      } catch (e) {
+        if (!(e instanceof TransientError)) {
+          throw e;
+        }
+        logger.warn('Gave up on a batch of albums', { albums: group.length, error: String(e) });
+        incomplete();
+      }
     }
 
     // ADD WHAT WAS NEVER POURED IN

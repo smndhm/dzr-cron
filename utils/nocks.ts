@@ -43,10 +43,19 @@ export const cleanAll = () => nock.cleanAll();
 
 // nock 14 only emits a plain object as is, which leaves the request hanging:
 // the error has to be a real Error for the client to reject.
-export const nockThrowError = (regexp: RegExp) =>
+export const nockThrowError = (regexp: RegExp, times = 1) =>
   nock('https://api.deezer.com')
     .get(regexp)
+    .times(times)
     .replyWithError(Object.assign(new Error('Error'), { code: 500 }));
+
+// A status rather than a payload: this is what a gateway in front of Deezer
+// answers, and what the retry is for
+export const nockStatus = (regexp: RegExp, status: number, times = 1) =>
+  nock('https://api.deezer.com')
+    .get(regexp)
+    .times(times)
+    .reply(status);
 
 export const nockRespondError = (regexp: RegExp, times = 1) =>
   nock('https://api.deezer.com')
