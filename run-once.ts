@@ -11,7 +11,7 @@ import { forgetChanges, writeSummary } from './utils/summary';
 
 // Runs the cron the workflow defined, then returns the number of logged errors
 // so the caller can exit accordingly.
-export default async function runOnce (env: NodeJS.ProcessEnv = process.env, output?: LogOutput): Promise<number> {
+export default async function runOnce(env: NodeJS.ProcessEnv = process.env, output?: LogOutput): Promise<number> {
   const logger = setLogger('run-once', output);
   resetErrorCount();
   forgetChanges();
@@ -37,10 +37,10 @@ export default async function runOnce (env: NodeJS.ProcessEnv = process.env, out
 // Entry point, `pnpm cron:once`
 if (require.main === module) {
   runOnce()
-    .then((errors) => {
+    .then(errors => {
       process.exitCode = errors > 0 ? 1 : 0;
     })
-    .catch((e) => {
+    .catch(e => {
       setLogger('run-once').error(e);
       process.exitCode = 1;
     });

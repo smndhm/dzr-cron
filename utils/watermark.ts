@@ -10,8 +10,7 @@ const DAY = 24 * 60 * 60 * 1000;
 // Deezer sometimes publishes a release after its own release_date
 const LAG_DAYS = 2;
 
-export const asDate = (time: number): string =>
-  new Date(time).toISOString().slice(0, 10);
+export const asDate = (time: number): string => new Date(time).toISOString().slice(0, 10);
 
 // The day the previous run covered, less the lag. Undefined on a first run.
 export const readWatermark = (description: unknown): string | undefined => {
@@ -26,5 +25,4 @@ export const readWatermark = (description: unknown): string | undefined => {
 };
 
 // Whatever the owner wrote, with exactly one mark at the end of it
-export const writeWatermark = (description: string, day: string): string =>
-  `${description.replace(MARKER, '')} [dzr-cron:${day}]`.trim();
+export const writeWatermark = (description: string, day: string): string => `${description.replace(MARKER, '')} [dzr-cron:${day}]`.trim();

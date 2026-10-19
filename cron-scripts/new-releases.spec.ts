@@ -32,20 +32,18 @@ const album = (id: number, release_date: string, record_type = 'album') => ({
 
 // The batch endpoint answers one entry per call, in order
 const batch = (...entries: unknown[][]) => ({
-  batch_result: entries.map((data) => ({ data })),
+  batch_result: entries.map(data => ({ data })),
 });
 
 // A playlist holding nothing, so every released track is new
 const emptyPlaylist = () => nockGetPlaylistIdTracks(1, { data: [] });
 const playable = (id: number) => ({ id, readable: true });
 const unplayable = (id: number) => ({ id, readable: false });
-const holding = (...ids: number[]) =>
-  nockGetPlaylistIdTracks(1, { data: ids.map((id) => ({ id })) });
+const holding = (...ids: number[]) => nockGetPlaylistIdTracks(1, { data: ids.map(id => ({ id })) });
 
 // Nothing played, so nothing is taken out
 const nothingPlayed = () => nockGetListeningHistory();
-const played = (...ids: number[]) =>
-  nockGetListeningHistory({ data: ids.map((id) => ({ id })) });
+const played = (...ids: number[]) => nockGetListeningHistory({ data: ids.map(id => ({ id })) });
 
 const args = { access_token: 'token', playlistId: 123456789 };
 

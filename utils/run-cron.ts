@@ -7,19 +7,19 @@ import newReleases from '../cron-scripts/new-releases';
 import { Cron } from './cron-conf';
 
 // Runs a single cron task, whatever triggers it
-export default async function runCron (cron: Cron): Promise<void> {
+export default async function runCron(cron: Cron): Promise<void> {
   switch (cron.action) {
-  case 'last-tracks':
-    await lastTracks(cron.arguments);
-    break;
-  case 'sync-playlists':
-    await syncPlaylists(cron.arguments);
-    break;
-  case 'new-releases':
-    await newReleases(cron.arguments);
-    break;
-  case 'remove-duplicates':
-    await removeDuplicates(cron.arguments);
-    break;
+    case 'last-tracks':
+      await lastTracks(cron.arguments);
+      break;
+    case 'sync-playlists':
+      await syncPlaylists(cron.arguments);
+      break;
+    case 'new-releases':
+      await newReleases(cron.arguments);
+      break;
+    case 'remove-duplicates':
+      await removeDuplicates(cron.arguments);
+      break;
   }
 }

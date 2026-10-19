@@ -1,13 +1,6 @@
 import removeDuplicates from './remove-duplicates';
 // MOCKS
-import {
-  cleanAll,
-  nockGetPlaylistIdTracks,
-  nockDeletePlaylistIdTracks,
-  nockDeletePlaylistIdTracksCapture,
-  nockRespondError,
-  nockThrowError
-} from '../utils/nocks';
+import { cleanAll, nockGetPlaylistIdTracks, nockDeletePlaylistIdTracks, nockDeletePlaylistIdTracksCapture, nockRespondError, nockThrowError } from '../utils/nocks';
 import mockEntityDeezerTracks from '../__mocks__/api-deezer-tracks.json';
 import { Playlist } from '../types';
 
@@ -18,10 +11,9 @@ describe('Sync Playlists Cron', () => {
     cleanAll();
   });
 
-  
   test('Should return if api respond an error', async () => {
     const mockRespondError = nockRespondError(/\/playlist\/\d+\/tracks/);
-    
+
     await removeDuplicates(cronArguments);
 
     expect(mockRespondError.isDone()).toBeTruthy();
@@ -29,7 +21,7 @@ describe('Sync Playlists Cron', () => {
 
   test('Should return if api throw an error', async () => {
     const mockRespondError = nockThrowError(/\/playlist\/\d+\/tracks/);
-    
+
     await removeDuplicates(cronArguments);
 
     expect(mockRespondError.isDone()).toBeTruthy();
@@ -100,10 +92,8 @@ describe('Sync Playlists Cron', () => {
     expect(mockDeletePlaylistIdTracks.isDone()).toBeFalsy();
   });
 
-  test.each(['9', '9 (blu)'])('Should delete duplicated track "%s"', async (title_short) => {
-    const playlistWithDuplicateTrack = JSON.parse(
-      JSON.stringify(mockEntityDeezerTracks)
-    );
+  test.each(['9', '9 (blu)'])('Should delete duplicated track "%s"', async title_short => {
+    const playlistWithDuplicateTrack = JSON.parse(JSON.stringify(mockEntityDeezerTracks));
     playlistWithDuplicateTrack.data.push({
       id: 10,
       title_short,
@@ -118,10 +108,7 @@ describe('Sync Playlists Cron', () => {
       explicit_lyrics: false,
       time_add: 10,
     });
-    const mockGetPlaylistIdTracks = nockGetPlaylistIdTracks(
-      1,
-      playlistWithDuplicateTrack
-    );
+    const mockGetPlaylistIdTracks = nockGetPlaylistIdTracks(1, playlistWithDuplicateTrack);
     const mockDeletePlaylistIdTracks = nockDeletePlaylistIdTracks();
 
     await removeDuplicates(cronArguments);

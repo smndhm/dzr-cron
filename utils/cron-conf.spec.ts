@@ -1,11 +1,4 @@
-import loadCron, {
-  parseCron,
-  resolveTokens,
-  CRON_NAME_ENV,
-  CRON_ACTION_ENV,
-  CRON_ARGUMENTS_ENV,
-  Cron,
-} from './cron-conf';
+import loadCron, { parseCron, resolveTokens, CRON_NAME_ENV, CRON_ACTION_ENV, CRON_ARGUMENTS_ENV, Cron } from './cron-conf';
 import { Playlist } from '../types';
 
 const myToken = 'frblublublublublublublublublublublublublublublublu';
@@ -52,15 +45,12 @@ describe('Cron configuration', () => {
     });
 
     test('Should throw when a secret is missing', () => {
-      expect(() => loadCron(env({ OTHER_ACCESS_TOKEN: undefined })))
-        .toThrow('Missing secret: OTHER_ACCESS_TOKEN');
+      expect(() => loadCron(env({ OTHER_ACCESS_TOKEN: undefined }))).toThrow('Missing secret: OTHER_ACCESS_TOKEN');
     });
 
     test('Should throw on arguments that are not JSON', () => {
-      expect(() => loadCron(env({ [CRON_ARGUMENTS_ENV]: '{nope' })))
-        .toThrow('CRON_ARGUMENTS is not valid JSON');
-      expect(() => loadCron(env({ [CRON_ARGUMENTS_ENV]: undefined })))
-        .toThrow('CRON_ARGUMENTS is not valid JSON');
+      expect(() => loadCron(env({ [CRON_ARGUMENTS_ENV]: '{nope' }))).toThrow('CRON_ARGUMENTS is not valid JSON');
+      expect(() => loadCron(env({ [CRON_ARGUMENTS_ENV]: undefined }))).toThrow('CRON_ARGUMENTS is not valid JSON');
     });
 
     test('Should keep the parse error as the cause', () => {
@@ -86,16 +76,13 @@ describe('Cron configuration', () => {
     });
 
     test('Should reject an unknown action', () => {
-      expect(() => parseCron('kids', 'drop-everything', syncArguments))
-        .toThrow('CRON_ACTION must be one of');
+      expect(() => parseCron('kids', 'drop-everything', syncArguments)).toThrow('CRON_ACTION must be one of');
     });
 
     test('Should reject a literal token', () => {
       // The workflows are public: a committed token has to fail loudly
-      expect(() => parseCron('dedup', 'remove-duplicates', { access_token: myToken, playlistId: 1 }))
-        .toThrow('placeholder such as "$MY_ACCESS_TOKEN"');
-      expect(() => parseCron('dedup', 'remove-duplicates', { access_token: '$lowercase', playlistId: 1 }))
-        .toThrow('placeholder such as "$MY_ACCESS_TOKEN"');
+      expect(() => parseCron('dedup', 'remove-duplicates', { access_token: myToken, playlistId: 1 })).toThrow('placeholder such as "$MY_ACCESS_TOKEN"');
+      expect(() => parseCron('dedup', 'remove-duplicates', { access_token: '$lowercase', playlistId: 1 })).toThrow('placeholder such as "$MY_ACCESS_TOKEN"');
     });
 
     test('Should never leak a token in an error message', () => {
@@ -108,29 +95,23 @@ describe('Cron configuration', () => {
     });
 
     test('Should reject an incomplete playlist', () => {
-      expect(() => parseCron('dedup', 'remove-duplicates', { access_token: '$MY_ACCESS_TOKEN' }))
-        .toThrow('needs an "access_token"');
-      expect(() => parseCron('dedup', 'remove-duplicates', { access_token: '$MY_ACCESS_TOKEN', playlistId: '1' }))
-        .toThrow('needs an "access_token"');
+      expect(() => parseCron('dedup', 'remove-duplicates', { access_token: '$MY_ACCESS_TOKEN' })).toThrow('needs an "access_token"');
+      expect(() => parseCron('dedup', 'remove-duplicates', { access_token: '$MY_ACCESS_TOKEN', playlistId: '1' })).toThrow('needs an "access_token"');
     });
 
     test('Should reject sync-playlists without two playlists', () => {
-      expect(() => parseCron('kids', 'sync-playlists', [syncArguments[0]]))
-        .toThrow('at least two playlists');
+      expect(() => parseCron('kids', 'sync-playlists', [syncArguments[0]])).toThrow('at least two playlists');
     });
 
     test('Should reject last-tracks without source playlists', () => {
       const { playlists, ...withoutPlaylists } = lastTracksArguments;
       expect(playlists).toBeDefined();
-      expect(() => parseCron('car', 'last-tracks', withoutPlaylists))
-        .toThrow('"playlists" array of at least one playlist');
+      expect(() => parseCron('car', 'last-tracks', withoutPlaylists)).toThrow('"playlists" array of at least one playlist');
     });
 
     test('Should reject invalid last-tracks options', () => {
-      expect(() => parseCron('car', 'last-tracks', { ...lastTracksArguments, nbTracks: '10' }))
-        .toThrow('"nbTracks" must be a number');
-      expect(() => parseCron('car', 'last-tracks', { ...lastTracksArguments, noExplicitLyrics: 'yes' }))
-        .toThrow('"noExplicitLyrics" must be a boolean');
+      expect(() => parseCron('car', 'last-tracks', { ...lastTracksArguments, nbTracks: '10' })).toThrow('"nbTracks" must be a number');
+      expect(() => parseCron('car', 'last-tracks', { ...lastTracksArguments, noExplicitLyrics: 'yes' })).toThrow('"noExplicitLyrics" must be a boolean');
     });
   });
 
@@ -138,7 +119,7 @@ describe('Cron configuration', () => {
     test('Should fill in every placeholder, at any depth', () => {
       const cron = parseCron('car', 'last-tracks', lastTracksArguments);
       const resolved = resolveTokens(cron, secrets);
-      const cronArguments = resolved.arguments as Playlist & { playlists: Playlist[], nbTracks: number };
+      const cronArguments = resolved.arguments as Playlist & { playlists: Playlist[]; nbTracks: number };
 
       expect(cronArguments.access_token).toBe(myToken);
       expect(cronArguments.playlists[0].access_token).toBe(otherToken);
@@ -148,8 +129,7 @@ describe('Cron configuration', () => {
     test('Should name every missing secret at once, and only the names', () => {
       const cron = parseCron('car', 'last-tracks', lastTracksArguments);
 
-      expect(() => resolveTokens(cron, {}))
-        .toThrow('Missing secret: MY_ACCESS_TOKEN, OTHER_ACCESS_TOKEN');
+      expect(() => resolveTokens(cron, {})).toThrow('Missing secret: MY_ACCESS_TOKEN, OTHER_ACCESS_TOKEN');
     });
 
     test('Should leave the cron untouched', () => {

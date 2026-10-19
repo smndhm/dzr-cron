@@ -40,7 +40,6 @@ jobs:
 
       - uses: smndhm/dev-config/.github/actions/setup@53b9676b0670cba6a8c4a396fb20e8db4d933956 # main
 
-
       # A second layer over GitHub's own masking of these three
       - name: Mask Deezer access tokens
         run: pnpm run --silent cron:mask

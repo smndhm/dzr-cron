@@ -35,14 +35,11 @@ describe('Mask tokens', () => {
 
   test('Should collect each token once', () => {
     // myToken appears three times in the cron above
-    expect(collectTokens(resolved).filter((token) => token === myToken)).toHaveLength(1);
+    expect(collectTokens(resolved).filter(token => token === myToken)).toHaveLength(1);
   });
 
   test('Should build one masking command per token', () => {
-    expect(maskTokens(env)).toEqual([
-      `::add-mask::${myToken}`,
-      `::add-mask::${otherToken}`,
-    ]);
+    expect(maskTokens(env)).toEqual([`::add-mask::${myToken}`, `::add-mask::${otherToken}`]);
   });
 
   test('Should mask the resolved tokens, never the placeholders', () => {

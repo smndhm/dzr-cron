@@ -5,9 +5,9 @@ import { Logger } from './logger';
 // What a script did to a playlist. The logs say it line by line; this says it
 // once, at the top of the run's page.
 export type Change = {
-  action: 'tracks-added' | 'tracks-removed' | 'tracks-ordered',
-  playlist: number,
-  tracks?: number[],
+  action: 'tracks-added' | 'tracks-removed' | 'tracks-ordered';
+  playlist: number;
+  tracks?: number[];
 };
 
 const changes: Change[] = [];
@@ -30,12 +30,12 @@ const count = (tracks: number[] | undefined, what: string): string => {
 
 const describe = (change: Change): string => {
   switch (change.action) {
-  case 'tracks-added':
-    return `${count(change.tracks, 'track')} added to playlist ${change.playlist}`;
-  case 'tracks-removed':
-    return `${count(change.tracks, 'track')} removed from playlist ${change.playlist}`;
-  case 'tracks-ordered':
-    return `playlist ${change.playlist} reordered`;
+    case 'tracks-added':
+      return `${count(change.tracks, 'track')} added to playlist ${change.playlist}`;
+    case 'tracks-removed':
+      return `${count(change.tracks, 'track')} removed from playlist ${change.playlist}`;
+    case 'tracks-ordered':
+      return `playlist ${change.playlist} reordered`;
   }
 };
 
@@ -45,7 +45,7 @@ export const renderSummary = (cron: string, errors: number): string => {
   if (changes.length === 0) {
     lines.push('Nothing to change.');
   } else {
-    changes.forEach((change) => lines.push(`- ${describe(change)}`));
+    changes.forEach(change => lines.push(`- ${describe(change)}`));
   }
 
   if (errors > 0) {

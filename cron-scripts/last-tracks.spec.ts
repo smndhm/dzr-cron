@@ -1,17 +1,10 @@
 import lastTracks from './last-tracks';
 // MOCK
-import { 
-  cleanAll,
-  nockGetPlaylistIdTracks, 
-  nockDeletePlaylistIdTracks,
-  nockPostPlaylistIdTracks,
-  nockThrowError,
-  nockRespondError
-} from '../utils/nocks';
+import { cleanAll, nockGetPlaylistIdTracks, nockDeletePlaylistIdTracks, nockPostPlaylistIdTracks, nockThrowError, nockRespondError } from '../utils/nocks';
 import mockEntityDeezerTracks from '../__mocks__/api-deezer-tracks.json';
 import { AtLeastOne, Playlist } from '../types';
 
-const cronArguments: Playlist & {playlists: AtLeastOne<Playlist>} = {
+const cronArguments: Playlist & { playlists: AtLeastOne<Playlist> } = {
   access_token: 'access_token',
   playlistId: 1234567890,
   playlists: [{ access_token: 'access_token', playlistId: 9876543210 }],
@@ -30,7 +23,6 @@ describe('Last Tracks Cron', () => {
     const cron = await lastTracks(cronArguments);
     expect(cron).not.toBeDefined();
 
-
     expect(mockGetPlaylistIdTracks.isDone()).toBeTruthy();
     expect(mockDeletePlaylistIdTracks.isDone()).toBeFalsy();
     expect(mockPostPlaylistIdTracks.isDone()).toBeFalsy();
@@ -44,10 +36,7 @@ describe('Last Tracks Cron', () => {
       explicit_lyrics: false,
       time_add: 10,
     });
-    const mockGetPlaylistIdAddedTracks = nockGetPlaylistIdTracks(
-      1,
-      lastAddedTracks
-    );
+    const mockGetPlaylistIdAddedTracks = nockGetPlaylistIdTracks(1, lastAddedTracks);
     const mockGetPlaylistIdTracks = nockGetPlaylistIdTracks();
     const mockDeletePlaylistIdTracks = nockDeletePlaylistIdTracks();
     const mockPostPlaylistIdTracks = nockPostPlaylistIdTracks();
@@ -69,10 +58,7 @@ describe('Last Tracks Cron', () => {
       time_add: 10,
     });
     lastAddedTracks.data[0].explicit_lyrics = true;
-    const mockGetPlaylistIdAddedTracks = nockGetPlaylistIdTracks(
-      1,
-      lastAddedTracks
-    );
+    const mockGetPlaylistIdAddedTracks = nockGetPlaylistIdTracks(1, lastAddedTracks);
     const mockGetPlaylistIdTracks = nockGetPlaylistIdTracks();
     const mockDeletePlaylistIdTracks = nockDeletePlaylistIdTracks();
     const mockPostPlaylistIdTracks = nockPostPlaylistIdTracks();
@@ -96,10 +82,7 @@ describe('Last Tracks Cron', () => {
       explicit_lyrics: false,
       time_add: 10,
     });
-    const mockGetPlaylistIdAddedTracks = nockGetPlaylistIdTracks(
-      1,
-      lastAddedTracks
-    );
+    const mockGetPlaylistIdAddedTracks = nockGetPlaylistIdTracks(1, lastAddedTracks);
     const mockGetPlaylistIdTracks = nockGetPlaylistIdTracks();
     const mockDeletePlaylistIdTracks = nockDeletePlaylistIdTracks();
     const mockPostPlaylistIdTracks = nockPostPlaylistIdTracks();

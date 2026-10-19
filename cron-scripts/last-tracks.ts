@@ -1,9 +1,5 @@
 // Import DZR utils
-import {
-  getPlaylistTracks,
-  deletePlaylistTracks,
-  postPlaylistTracks,
-} from '../utils/dzr';
+import { getPlaylistTracks, deletePlaylistTracks, postPlaylistTracks } from '../utils/dzr';
 // Import logger
 import setLogger from '../utils/logger';
 // Import run summary
@@ -19,7 +15,7 @@ export default async function lastTracks({
   playlists,
   nbTracks = 50,
   noExplicitLyrics = false,
-}: Playlist & {playlists: AtLeastOne<Playlist>} & {nbTracks?: number} & {noExplicitLyrics?: boolean}) {
+}: Playlist & { playlists: AtLeastOne<Playlist> } & { nbTracks?: number } & { noExplicitLyrics?: boolean }) {
   try {
     logger.info('Script started');
 
@@ -50,7 +46,7 @@ export default async function lastTracks({
         .toSorted((a, b) => b.time_add - a.time_add)
         // filter tracks
         .filter(
-          (track) =>
+          track =>
             track.readable && // this params is sometimes not correct...
             (!noExplicitLyrics || !track.explicit_lyrics) && // remove tracks with explicit lyrics
             !keptTracksId.has(track.id),
@@ -58,27 +54,20 @@ export default async function lastTracks({
         // limit to N tracks
         .slice(0, nbTracks)
         // Add tracks
-        .forEach((track) => {
+        .forEach(track => {
           keptTracksId.add(track.id);
           dzrTracksId.push(track.id);
         });
     }
 
     // GET DESTINATION PLAYLIST TRACKS
-    const { data: dzrDestinationPlaylistTracks } = await getPlaylistTracks(
-      access_token,
-      playlistId,
-    );
+    const { data: dzrDestinationPlaylistTracks } = await getPlaylistTracks(access_token, playlistId);
 
-    const dzrDestinationPlaylistTracksId: number[] = dzrDestinationPlaylistTracks.map(
-      (track: DeezerTrack) => track.id,
-    );
+    const dzrDestinationPlaylistTracksId: number[] = dzrDestinationPlaylistTracks.map((track: DeezerTrack) => track.id);
     const destinationTracksId = new Set(dzrDestinationPlaylistTracksId);
 
     // REMOVE TRACKS FROM PLAYLIST
-    const tracksToRemove = dzrDestinationPlaylistTracksId.filter(
-      (track) => !keptTracksId.has(track),
-    );
+    const tracksToRemove = dzrDestinationPlaylistTracksId.filter(track => !keptTracksId.has(track));
     if (tracksToRemove.length) {
       await deletePlaylistTracks(access_token, playlistId, tracksToRemove);
       reportChange(logger, {
@@ -89,9 +78,7 @@ export default async function lastTracks({
     }
 
     // GET TRACKS TO ADD
-    const tracksToAdd = dzrTracksId.filter(
-      (track) => !destinationTracksId.has(track),
-    );
+    const tracksToAdd = dzrTracksId.filter(track => !destinationTracksId.has(track));
     if (tracksToAdd.length) {
       await postPlaylistTracks(access_token, playlistId, tracksToAdd);
       reportChange(logger, {

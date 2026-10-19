@@ -28,13 +28,11 @@ describe('watermark', () => {
 
   describe('writeWatermark', () => {
     test('adds a mark to a description that has none', () => {
-      expect(writeWatermark('Mes sorties', '2026-09-17'))
-        .toBe('Mes sorties [dzr-cron:2026-09-17]');
+      expect(writeWatermark('Mes sorties', '2026-09-17')).toBe('Mes sorties [dzr-cron:2026-09-17]');
     });
 
     test('replaces its own mark rather than stacking a second', () => {
-      expect(writeWatermark('Mes sorties [dzr-cron:2020-01-01]', '2026-09-17'))
-        .toBe('Mes sorties [dzr-cron:2026-09-17]');
+      expect(writeWatermark('Mes sorties [dzr-cron:2020-01-01]', '2026-09-17')).toBe('Mes sorties [dzr-cron:2026-09-17]');
     });
 
     test('writes only the mark on an empty description', () => {
