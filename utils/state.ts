@@ -56,7 +56,7 @@ export const writePoured = (poured: Poured, file: string = stateFile()): void =>
   mkdirSync(dirname(file), { recursive: true });
   // Sorted, so a commit shows what changed rather than a reshuffled object
   const sorted = Object.keys(poured)
-    .sort()
+    .toSorted()
     .reduce<Poured>((all, id) => ({ ...all, [id]: poured[id] }), {});
   writeFileSync(file, `${JSON.stringify(sorted, null, 2)}\n`);
 };

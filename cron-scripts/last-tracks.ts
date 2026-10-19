@@ -25,8 +25,8 @@ export default async function lastTracks({
 
     // GET PLAYLISTS CONTENT
     const dzrPlaylists: DeezerTrack[][] = [];
-    for await (const { access_token, playlistId } of playlists) {
-      const data = await getPlaylistTracks(access_token, playlistId);
+    for await (const playlist of playlists) {
+      const data = await getPlaylistTracks(playlist.access_token, playlist.playlistId);
       if (!data.error) {
         dzrPlaylists.push(data.data);
       } else {
@@ -47,7 +47,7 @@ export default async function lastTracks({
     for (const playlistTracks of dzrPlaylists) {
       playlistTracks
         // most recent first
-        .sort((a, b) => b.time_add - a.time_add)
+        .toSorted((a, b) => b.time_add - a.time_add)
         // filter tracks
         .filter(
           (track) =>

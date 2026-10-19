@@ -1,19 +1,4 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": [
-    "config:recommended"
-  ],
-  "minimumReleaseAge": "24 hours",
-  "semanticCommits": "enabled",
-  "packageRules": [
-    {
-      "description": "Nothing here ships to production and the tests run on every branch: a minor, a patch or a digest merges itself once they pass. A major never does, and an unwanted one is refused by closing its pull request once.",
-      "matchUpdateTypes": [
-        "minor",
-        "patch",
-        "digest"
-      ],
-      "automerge": true
-    }
-  ]
+  "extends": ["local>smndhm/dev-config"]
 }

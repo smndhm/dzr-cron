@@ -25,28 +25,21 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       # The playlist cannot remember what it no longer holds, and the
       # description holds 255 characters. This branch holds nothing but the file
       # of ids, and no workflow listens to it, so a commit here runs nothing.
       - name: Read what earlier runs poured in
         if: inputs.action == 'new-releases'
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: dzr-cron-state
           path: .state
           fetch-depth: 1
 
-      - uses: pnpm/action-setup@v6
+      - uses: smndhm/dev-config/.github/actions/setup@53b9676b0670cba6a8c4a396fb20e8db4d933956 # main
 
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 24
-          cache: pnpm
-
-      - name: Install modules
-        run: pnpm install --frozen-lockfile
 
       # A second layer over GitHub's own masking of these three
       - name: Mask Deezer access tokens

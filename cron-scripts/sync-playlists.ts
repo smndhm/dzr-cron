@@ -46,7 +46,7 @@ export default async function syncPlaylists(playlists: AtLeastTwo<Playlist>) {
     // GROUP ALL TRACKS
       .flatMap((playlist) => playlist.data)
     // ORDER BY TIME ADD (IF SAME, ORDER BY ID)
-      .sort((a, b) =>
+      .toSorted((a, b) =>
         a.time_add !== b.time_add ? a.time_add - b.time_add : a.id - b.id
       )
     // IF 2 TRACKS ARE THE SAME, KEEP FIRST ADDED, AND KEEP IDS

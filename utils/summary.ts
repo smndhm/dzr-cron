@@ -49,7 +49,7 @@ export const renderSummary = (cron: string, errors: number): string => {
   }
 
   if (errors > 0) {
-    lines.push('', `**${count(new Array(errors), 'error')}**, see the log below.`);
+    lines.push('', `**${count(Array.from<number>({ length: errors }), 'error')}**, see the log below.`);
   }
 
   return `${lines.join('\n')}\n`;
