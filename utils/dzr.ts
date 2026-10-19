@@ -15,10 +15,9 @@ const TRANSIENT = new Set([429, 500, 502, 503, 504]);
 const ATTEMPTS = 2;
 
 // Tests set it to nothing rather than wait
-const retryDelay = (env: NodeJS.ProcessEnv = process.env): number =>
-  Number(env.DZR_RETRY_DELAY_MS ?? 1000);
+const retryDelay = (env: NodeJS.ProcessEnv = process.env): number => Number(env.DZR_RETRY_DELAY_MS ?? 1000);
 
-const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const pause = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 // Thrown where the caller may decide to carry on without this answer, which no
 // other failure allows: a refused token has to stop the run.
@@ -47,9 +46,7 @@ const request = async (method: string, path: string, params: Params) => {
 
     if (TRANSIENT.has(response.status)) {
       if (last) {
-        throw new TransientError(
-          `Deezer answered ${response.status} ${response.statusText}, twice.`,
-        );
+        throw new TransientError(`Deezer answered ${response.status} ${response.statusText}, twice.`);
       }
       await pause(retryDelay());
       continue;
@@ -64,19 +61,13 @@ const request = async (method: string, path: string, params: Params) => {
   }
 };
 
-export const getPlaylistTracks = (access_token: string, playlistId: number) =>
-  request('GET', `/playlist/${playlistId}/tracks`, { access_token, limit });
+export const getPlaylistTracks = (access_token: string, playlistId: number) => request('GET', `/playlist/${playlistId}/tracks`, { access_token, limit });
 
 // The songs travel in the url, so writes split rather than find where Deezer
 // stops reading one. Here rather than in each caller: the api imposes it.
 const SONGS_PER_CALL = 100;
 
-const writeSongs = async (
-  method: string,
-  access_token: string,
-  playlistId: number,
-  songs: number[],
-) => {
+const writeSongs = async (method: string, access_token: string, playlistId: number, songs: number[]) => {
   for (let i = 0; i < songs.length; i += SONGS_PER_CALL) {
     await request(method, `/playlist/${playlistId}/tracks`, {
       access_token,
@@ -85,25 +76,17 @@ const writeSongs = async (
   }
 };
 
-export const deletePlaylistTracks = (access_token: string, playlistId: number, songs: number[]) =>
-  writeSongs('DELETE', access_token, playlistId, songs);
+export const deletePlaylistTracks = (access_token: string, playlistId: number, songs: number[]) => writeSongs('DELETE', access_token, playlistId, songs);
 
-export const postPlaylistTracks = (access_token: string, playlistId: number, songs: number[]) =>
-  writeSongs('POST', access_token, playlistId, songs);
+export const postPlaylistTracks = (access_token: string, playlistId: number, songs: number[]) => writeSongs('POST', access_token, playlistId, songs);
 
 // The playlist itself rather than its tracks, for its description
-export const getPlaylist = (access_token: string, playlistId: number) =>
-  request('GET', `/playlist/${playlistId}`, { access_token });
+export const getPlaylist = (access_token: string, playlistId: number) => request('GET', `/playlist/${playlistId}`, { access_token });
 
-export const postPlaylistDescription = (
-  access_token: string,
-  playlistId: number,
-  description: string,
-) => request('POST', `/playlist/${playlistId}`, { access_token, description });
+export const postPlaylistDescription = (access_token: string, playlistId: number, description: string) => request('POST', `/playlist/${playlistId}`, { access_token, description });
 
 // The artists the user has put in their favourites
-export const getFavouriteArtists = (access_token: string) =>
-  request('GET', '/user/me/artists', { access_token, limit });
+export const getFavouriteArtists = (access_token: string) => request('GET', '/user/me/artists', { access_token, limit });
 
 // What the user has listened to lately, most recent first. Needs the
 // listening_history permission, and ignores limit: Deezer answers fifty at a
@@ -139,9 +122,7 @@ export const getListeningHistory = async (access_token: string) => {
 export const getBatch = (access_token: string, relativeUrls: string[]) =>
   request('GET', '/batch', {
     access_token,
-    methods: JSON.stringify(
-      relativeUrls.map((relative_url) => ({ relative_url, params: { limit } })),
-    ),
+    methods: JSON.stringify(relativeUrls.map(relative_url => ({ relative_url, params: { limit } }))),
   });
 
 export const postPlaylistTracksOrder = (access_token: string, playlistId: number, order: number[]) =>

@@ -38,32 +38,20 @@ const chunk = <T>(items: T[], size: number): T[][] => {
 
 // Every entry of a batch answers for itself, so one artist Deezer refuses does
 // not lose the forty nine others. Entries keep the order they were sent in.
-const batchEntries = <T>(
-  batchResult: { data?: T[], error?: unknown }[],
-  onError: () => void,
-): T[][] =>
-    batchResult.map((entry) => {
-      if (entry.error) {
-        logger.error('API Error Response', entry.error);
-        onError();
-        return [];
-      }
-      return entry.data ?? [];
-    });
+const batchEntries = <T>(batchResult: { data?: T[]; error?: unknown }[], onError: () => void): T[][] =>
+  batchResult.map(entry => {
+    if (entry.error) {
+      logger.error('API Error Response', entry.error);
+      onError();
+      return [];
+    }
+    return entry.data ?? [];
+  });
 
-const batchData = <T>(
-  batchResult: { data?: T[], error?: unknown }[],
-  onError: () => void,
-): T[] => batchEntries<T>(batchResult, onError).flat();
+const batchData = <T>(batchResult: { data?: T[]; error?: unknown }[], onError: () => void): T[] => batchEntries<T>(batchResult, onError).flat();
 
 // Writes down the day this run covered, so the next one starts after it
-const leaveMark = async (
-  access_token: string,
-  playlistId: number,
-  description: unknown,
-  day: string,
-  complete: boolean,
-) => {
+const leaveMark = async (access_token: string, playlistId: number, description: unknown, day: string, complete: boolean) => {
   if (!complete) {
     logger.warn('Incomplete run, leaving the mark where it was');
     return;
@@ -89,12 +77,7 @@ const leaveMark = async (
 };
 
 // Script
-export default async function newReleases({
-  playlistId,
-  access_token,
-  days = 15,
-  recordTypes,
-}: Playlist & {days?: number} & {recordTypes?: string[]}) {
+export default async function newReleases({ playlistId, access_token, days = 15, recordTypes }: Playlist & { days?: number } & { recordTypes?: string[] }) {
   try {
     logger.info('Script started');
 
@@ -122,13 +105,8 @@ export default async function newReleases({
 
     // WHAT IS IN THE PLAYLIST, AND WHAT HAS BEEN LISTENED TO
     // The same two answers decide what to pour in and what to take out
-    const { data: dzrDestinationPlaylistTracks } = await getPlaylistTracks(
-      access_token,
-      playlistId,
-    );
-    const playlistTracksId = new Set<number>(
-      dzrDestinationPlaylistTracks.map((track: DeezerTrack) => track.id),
-    );
+    const { data: dzrDestinationPlaylistTracks } = await getPlaylistTracks(access_token, playlistId);
+    const playlistTracksId = new Set<number>(dzrDestinationPlaylistTracks.map((track: DeezerTrack) => track.id));
 
     // WHAT EARLIER RUNS POURED IN
     // The playlist forgets a track the moment anything takes it out, whether a
@@ -151,21 +129,17 @@ export default async function newReleases({
       logger.error('API Error Response', history.error);
       incomplete();
     }
-    const playedTracksId = new Set<number>(
-      (history.data ?? []).map((track: DeezerTrack) => track.id),
-    );
+    const playedTracksId = new Set<number>((history.data ?? []).map((track: DeezerTrack) => track.id));
     // Deezer does not say how deep the history goes, and it decides how long
     // this cron may sleep, so the runs measure it
     logger.info('Listening history', { tracks: playedTracksId.size });
 
     // TAKE OUT WHAT HAS BEEN HEARD
     // Before the discovery, so a run that finds no release still cleans up
-    const tracksToRemove = Array.from(playlistTracksId).filter((track) =>
-      playedTracksId.has(track),
-    );
+    const tracksToRemove = Array.from(playlistTracksId).filter(track => playedTracksId.has(track));
     if (tracksToRemove.length) {
       await deletePlaylistTracks(access_token, playlistId, tracksToRemove);
-      tracksToRemove.forEach((track) => playlistTracksId.delete(track));
+      tracksToRemove.forEach(track => playlistTracksId.delete(track));
       reportChange(logger, {
         action: 'tracks-removed',
         playlist: playlistId,
@@ -196,7 +170,7 @@ export default async function newReleases({
       try {
         const { batch_result } = await getBatch(
           access_token,
-          group.map((artistId) => `artist/${artistId}/albums`),
+          group.map(artistId => `artist/${artistId}/albums`),
         );
         albums.push(...batchData<DeezerAlbum>(batch_result, incomplete));
       } catch (e) {
@@ -213,13 +187,7 @@ export default async function newReleases({
     // together answers in both their lists, and because the date is what a
     // poured track is remembered by.
     const releases = new Map<number, string>();
-    albums
-      .filter(
-        (album) =>
-          album.release_date >= since &&
-          (!recordTypes || recordTypes.includes(album.record_type)),
-      )
-      .forEach((album) => releases.set(album.id, album.release_date));
+    albums.filter(album => album.release_date >= since && (!recordTypes || recordTypes.includes(album.record_type))).forEach(album => releases.set(album.id, album.release_date));
 
     if (releases.size === 0) {
       logger.info('No release since', { since });
@@ -238,14 +206,12 @@ export default async function newReleases({
       try {
         const { batch_result } = await getBatch(
           access_token,
-          group.map((albumId) => `album/${albumId}/tracks`),
+          group.map(albumId => `album/${albumId}/tracks`),
         );
         batchEntries<DeezerTrack>(batch_result, incomplete).forEach((tracks, index) => {
           const releaseDate = releases.get(group[index]) ?? today;
           const notOutYet = releaseDate > today;
-          tracks
-            .filter((track) => !notOutYet || track.readable)
-            .forEach((track) => releasedTracks.set(track.id, releaseDate));
+          tracks.filter(track => !notOutYet || track.readable).forEach(track => releasedTracks.set(track.id, releaseDate));
         });
       } catch (e) {
         if (!(e instanceof TransientError)) {
@@ -259,12 +225,7 @@ export default async function newReleases({
     // ADD WHAT WAS NEVER POURED IN
     // A played release is never poured in, rather than taken out next run. One
     // already poured in is never poured again, however it left the playlist.
-    const tracksToAdd = Array.from(releasedTracks.keys()).filter(
-      (track) =>
-        !playlistTracksId.has(track) &&
-        !playedTracksId.has(track) &&
-        poured[track] === undefined,
-    );
+    const tracksToAdd = Array.from(releasedTracks.keys()).filter(track => !playlistTracksId.has(track) && !playedTracksId.has(track) && poured[track] === undefined);
 
     if (tracksToAdd.length) {
       await postPlaylistTracks(access_token, playlistId, tracksToAdd);
@@ -276,7 +237,7 @@ export default async function newReleases({
       // Written down at once: what this run forgets to say it poured in, the
       // next one pours in again the moment the owner takes it out.
       if (remembering) {
-        tracksToAdd.forEach((track) => {
+        tracksToAdd.forEach(track => {
           poured[track] = releasedTracks.get(track) ?? today;
         });
         try {

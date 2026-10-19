@@ -49,7 +49,7 @@ describe('Run once', () => {
 
   test('Should name the cron in the logs', async () => {
     const lines: string[] = [];
-    await runOnce(env(), (line) => lines.push(line));
+    await runOnce(env(), line => lines.push(line));
 
     expect(lines.join('\n')).toContain('"action":"cron-started","cron":"kids-playlist"');
     expect(lines.join('\n')).toContain('"action":"cron-ended","cron":"kids-playlist","errors":0');
@@ -78,20 +78,17 @@ describe('Run once', () => {
   });
 
   test('Should reject a missing secret before calling Deezer', async () => {
-    await expect(runOnce(env({ OTHER_ACCESS_TOKEN: undefined })))
-      .rejects.toThrow('Missing secret: OTHER_ACCESS_TOKEN');
+    await expect(runOnce(env({ OTHER_ACCESS_TOKEN: undefined }))).rejects.toThrow('Missing secret: OTHER_ACCESS_TOKEN');
     expect(mockSyncPlaylists).not.toBeCalled();
   });
 
   test('Should reject an unknown action', async () => {
-    await expect(runOnce(env({ [CRON_ACTION_ENV]: 'drop-everything' })))
-      .rejects.toThrow('CRON_ACTION must be one of');
+    await expect(runOnce(env({ [CRON_ACTION_ENV]: 'drop-everything' }))).rejects.toThrow('CRON_ACTION must be one of');
     expect(mockSyncPlaylists).not.toBeCalled();
   });
 
   test('Should reject arguments that are not JSON', async () => {
-    await expect(runOnce(env({ [CRON_ARGUMENTS_ENV]: '{nope' })))
-      .rejects.toThrow('CRON_ARGUMENTS is not valid JSON');
+    await expect(runOnce(env({ [CRON_ARGUMENTS_ENV]: '{nope' }))).rejects.toThrow('CRON_ARGUMENTS is not valid JSON');
     expect(mockSyncPlaylists).not.toBeCalled();
   });
 });

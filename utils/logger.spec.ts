@@ -1,10 +1,5 @@
 import nock from 'nock';
-import setLogger, {
-  getErrorCount,
-  resetErrorCount,
-  registerSecrets,
-  forgetSecrets,
-} from './logger';
+import setLogger, { getErrorCount, resetErrorCount, registerSecrets, forgetSecrets } from './logger';
 import { getPlaylistTracks } from './dzr';
 
 const accessToken = 'frblublublublublublublublublublublublublublublublu';
@@ -84,7 +79,10 @@ describe('Logger', () => {
   test('Should redact the token of a request that really failed', async () => {
     const { lines, output } = collect();
     registerSecrets([accessToken]);
-    nock('https://api.deezer.com').get(/\/playlist\/\d+\/tracks/).times(1).reply(403, { error: 'nope' });
+    nock('https://api.deezer.com')
+      .get(/\/playlist\/\d+\/tracks/)
+      .times(1)
+      .reply(403, { error: 'nope' });
 
     try {
       await getPlaylistTracks(accessToken, 1234567890);

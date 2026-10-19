@@ -23,8 +23,7 @@ export type Poured = Record<string, string>;
 // without the memory. DZR_STATE_FILE moves it, which is how the tests reach it.
 const DEFAULT_FILE = '.state/poured.json';
 
-export const stateFile = (env: NodeJS.ProcessEnv = process.env): string =>
-  env.DZR_STATE_FILE ?? DEFAULT_FILE;
+export const stateFile = (env: NodeJS.ProcessEnv = process.env): string => env.DZR_STATE_FILE ?? DEFAULT_FILE;
 
 export const hasState = (file: string = stateFile()): boolean => existsSync(dirname(file));
 
@@ -40,23 +39,18 @@ export const readPoured = (file: string = stateFile()): Poured => {
   if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
     throw new Error(`${file} does not hold an object.`);
   }
-  return Object.fromEntries(
-    Object.entries(parsed as Record<string, unknown>).filter(
-      ([id, day]) => /^\d+$/.test(id) && typeof day === 'string',
-    ),
-  ) as Poured;
+  return Object.fromEntries(Object.entries(parsed as Record<string, unknown>).filter(([id, day]) => /^\d+$/.test(id) && typeof day === 'string')) as Poured;
 };
 
 // An id is only worth keeping while its album can still fall inside the
 // discovery window. Past that, no run will ever look at the album again.
-export const prunePoured = (poured: Poured, since: string): Poured =>
-  Object.fromEntries(Object.entries(poured).filter(([, releaseDate]) => releaseDate >= since));
+export const prunePoured = (poured: Poured, since: string): Poured => Object.fromEntries(Object.entries(poured).filter(([, releaseDate]) => releaseDate >= since));
 
 export const writePoured = (poured: Poured, file: string = stateFile()): void => {
   mkdirSync(dirname(file), { recursive: true });
   // Sorted, so a commit shows what changed rather than a reshuffled object
   const sorted = Object.keys(poured)
-    .sort()
+    .toSorted()
     .reduce<Poured>((all, id) => ({ ...all, [id]: poured[id] }), {});
   writeFileSync(file, `${JSON.stringify(sorted, null, 2)}\n`);
 };

@@ -3,3 +3,7 @@
 # and it needs its install script to put its binary in place.
 allowBuilds:
   esbuild: true
+
+# My own packages (smndhm/dev-config) can be used as soon as they are published
+minimumReleaseAgeExclude:
+  - '@dume/*'

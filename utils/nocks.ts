@@ -31,7 +31,7 @@ export const nockDeletePlaylistIdTracksCapture = () => {
   const captured: { songs?: string } = {};
   const scope = nock('https://api.deezer.com')
     .delete(/\/playlist\/\d+\/tracks/)
-    .query((query) => {
+    .query(query => {
       captured.songs = query.songs as string;
       return true;
     })
@@ -51,11 +51,7 @@ export const nockThrowError = (regexp: RegExp, times = 1) =>
 
 // A status rather than a payload: this is what a gateway in front of Deezer
 // answers, and what the retry is for
-export const nockStatus = (regexp: RegExp, status: number, times = 1) =>
-  nock('https://api.deezer.com')
-    .get(regexp)
-    .times(times)
-    .reply(status);
+export const nockStatus = (regexp: RegExp, status: number, times = 1) => nock('https://api.deezer.com').get(regexp).times(times).reply(status);
 
 export const nockRespondError = (regexp: RegExp, times = 1) =>
   nock('https://api.deezer.com')
@@ -63,9 +59,7 @@ export const nockRespondError = (regexp: RegExp, times = 1) =>
     .times(times)
     .reply(200, { error: { type: 'Error', message: 'Error', code: 403 } });
 
-export const nockGetFavouriteArtists = (
-  response: Body = { data: [{ id: 11, name: 'Artist' }] },
-) =>
+export const nockGetFavouriteArtists = (response: Body = { data: [{ id: 11, name: 'Artist' }] }) =>
   nock('https://api.deezer.com')
     .get(/\/user\/me\/artists/)
     .reply(200, response);
@@ -83,7 +77,7 @@ export const nockPostPlaylistIdTracksCapture = (times = 1) => {
   const scope = nock('https://api.deezer.com')
     .post(/\/playlist\/\d+\/tracks/)
     .times(times)
-    .query((query) => {
+    .query(query => {
       captured.push(query.songs as string);
       return true;
     })
@@ -95,17 +89,14 @@ export const nockPostPlaylistIdTracksCapture = (times = 1) => {
 // is a function rather than a loose regexp that /tracks would also satisfy.
 const isPlaylistItself = (uri: string) => /^\/playlist\/\d+(\?|$)/.test(uri);
 
-export const nockGetPlaylist = (response: Body = { id: 123456789, description: '' }) =>
-  nock('https://api.deezer.com')
-    .get(isPlaylistItself)
-    .reply(200, response);
+export const nockGetPlaylist = (response: Body = { id: 123456789, description: '' }) => nock('https://api.deezer.com').get(isPlaylistItself).reply(200, response);
 
 // Keeps the description the script wrote back
 export const nockPostPlaylistDescriptionCapture = () => {
   const captured: { description?: string } = {};
   const scope = nock('https://api.deezer.com')
     .post(isPlaylistItself)
-    .query((query) => {
+    .query(query => {
       captured.description = query.description as string;
       return true;
     })
@@ -133,7 +124,7 @@ export const nockGetListeningHistoryPages = (first: unknown[], second: unknown[]
   const scope = nock('https://api.deezer.com')
     .get(/\/user\/me\/history/)
     .times(2)
-    .query((query) => {
+    .query(query => {
       indexes.push(query.index as string);
       return true;
     })

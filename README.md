@@ -274,14 +274,14 @@ Each run also writes a summary on its page in the Actions tab, above the log:
 Their schedules live in their own workflow, in UTC, in the second half of the
 hour. Reading them off `.github/workflows`:
 
-| Cron | Schedule | |
-|---|---|---|
-| family-playlist | `23 * * * *` | hourly |
-| car-playlist | `33 * * * *` | hourly |
-| lucas | `43 * * * *` | hourly |
-| thibaut | `53 * * * *` | hourly |
-| new-releases | `48 */4 * * *` | every four hours |
-| remove-duplicates | `26 23 * * *` | daily, middle of the night |
+| Cron              | Schedule       |                            |
+| ----------------- | -------------- | -------------------------- |
+| family-playlist   | `23 * * * *`   | hourly                     |
+| car-playlist      | `33 * * * *`   | hourly                     |
+| lucas             | `43 * * * *`   | hourly                     |
+| thibaut           | `53 * * * *`   | hourly                     |
+| new-releases      | `48 */4 * * *` | every four hours           |
+| remove-duplicates | `26 23 * * *`  | daily, middle of the night |
 
 ### Good to know
 

@@ -13,7 +13,7 @@ const secrets = new Set<string>();
 const MIN_SECRET_LENGTH = 8;
 
 export const registerSecrets = (tokens: string[]): void => {
-  tokens.forEach((token) => {
+  tokens.forEach(token => {
     if (token && token.length >= MIN_SECRET_LENGTH) {
       secrets.add(token);
     }
@@ -26,7 +26,7 @@ export const forgetSecrets = (): void => {
 
 const censorSecrets = (line: string): string => {
   let censored = line;
-  secrets.forEach((secret) => {
+  secrets.forEach(secret => {
     if (censored.includes(secret)) {
       censored = censored.split(secret).join(CENSOR);
     }
@@ -46,7 +46,7 @@ const redactTokens = (value: unknown, seen: WeakSet<object> = new WeakSet()): un
   seen.add(value);
 
   if (Array.isArray(value)) {
-    return value.map((entry) => redactTokens(entry, seen));
+    return value.map(entry => redactTokens(entry, seen));
   }
 
   const redacted: Record<string, unknown> = {};
@@ -68,7 +68,7 @@ export const resetErrorCount = (): void => {
 
 export type LogOutput = (line: string) => void;
 
-const toStdout: LogOutput = (line) => {
+const toStdout: LogOutput = line => {
   process.stdout.write(`${line}\n`);
 };
 
@@ -92,7 +92,7 @@ export type Logger = {
   error: (payload: unknown, extra?: unknown) => void;
 };
 
-export default function setLogger (script: string, output: LogOutput = toStdout): Logger {
+export default function setLogger(script: string, output: LogOutput = toStdout): Logger {
   const log = (level: string, payload: unknown, extra?: unknown): void => {
     const parts = [render(payload)];
     if (extra !== undefined) {

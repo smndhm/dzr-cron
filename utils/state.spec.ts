@@ -47,12 +47,7 @@ describe('state', () => {
     // An id is only worth keeping while its album can still fall inside the
     // window. Past that, no run will ever look at the album again.
     test('drops an album that fell out of the window and keeps its edge', () => {
-      expect(
-        prunePoured(
-          { 101: '2026-09-10', 102: '2026-09-15', 103: '2026-09-30' },
-          '2026-09-15',
-        ),
-      ).toEqual({ 102: '2026-09-15', 103: '2026-09-30' });
+      expect(prunePoured({ 101: '2026-09-10', 102: '2026-09-15', 103: '2026-09-30' }, '2026-09-15')).toEqual({ 102: '2026-09-15', 103: '2026-09-30' });
     });
   });
 

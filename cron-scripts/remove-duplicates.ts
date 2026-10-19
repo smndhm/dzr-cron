@@ -1,8 +1,5 @@
 // Import DZR utils
-import {
-  getPlaylistTracks,
-  deletePlaylistTracks
-} from '../utils/dzr';
+import { getPlaylistTracks, deletePlaylistTracks } from '../utils/dzr';
 // Import logger
 import setLogger from '../utils/logger';
 // Import run summary
@@ -14,9 +11,7 @@ import { Playlist, DeezerTrack } from '../types';
 // Two tracks are the same song when the artist and the duration match but the
 // album differs: a reissue, or the same track on an album and on an EP.
 const isSameSong = (track: DeezerTrack, other: DeezerTrack): boolean =>
-  track.artist.id === other.artist.id &&
-  track.album.id !== other.album.id &&
-  track.duration === other.duration;
+  track.artist.id === other.artist.id && track.album.id !== other.album.id && track.duration === other.duration;
 
 export default async function removeDuplicates({ playlistId, access_token }: Playlist) {
   try {

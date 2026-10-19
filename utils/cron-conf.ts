@@ -1,10 +1,5 @@
 // Import types
-import {
-  LastTracksCron,
-  SyncPlaylistCron,
-  RemoveDuplicatesCron,
-  NewReleasesCron,
-} from '../types';
+import { LastTracksCron, SyncPlaylistCron, RemoveDuplicatesCron, NewReleasesCron } from '../types';
 
 export type Cron = LastTracksCron | SyncPlaylistCron | RemoveDuplicatesCron | NewReleasesCron;
 
@@ -20,15 +15,11 @@ const TOKEN_PLACEHOLDER = /^\$[A-Z][A-Z0-9_]*$/;
 
 const ACTIONS = ['last-tracks', 'sync-playlists', 'remove-duplicates', 'new-releases'];
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value);
+const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
 
 // A playlist is an access_token placeholder / playlistId pair
 const isPlaylist = (value: unknown): boolean =>
-  isRecord(value) &&
-  typeof value.access_token === 'string' &&
-  TOKEN_PLACEHOLDER.test(value.access_token) &&
-  typeof value.playlistId === 'number';
+  isRecord(value) && typeof value.access_token === 'string' && TOKEN_PLACEHOLDER.test(value.access_token) && typeof value.playlistId === 'number';
 
 const assertArguments = (action: string, cronArguments: unknown): void => {
   if (action === 'sync-playlists') {
@@ -63,12 +54,7 @@ const assertArguments = (action: string, cronArguments: unknown): void => {
     if (days !== undefined && (typeof days !== 'number' || days <= 0)) {
       throw new Error(`${CRON_ARGUMENTS_ENV}: "days" must be a number of days above zero.`);
     }
-    if (
-      recordTypes !== undefined &&
-      (!Array.isArray(recordTypes) ||
-        recordTypes.length === 0 ||
-        !recordTypes.every((type) => typeof type === 'string'))
-    ) {
+    if (recordTypes !== undefined && (!Array.isArray(recordTypes) || recordTypes.length === 0 || !recordTypes.every(type => typeof type === 'string'))) {
       throw new Error(`${CRON_ARGUMENTS_ENV}: "recordTypes" must be a non empty array of strings.`);
     }
   }
@@ -99,17 +85,19 @@ export const resolveTokens = (cron: Cron, env: NodeJS.ProcessEnv): Cron => {
     if (!isRecord(value)) {
       return value;
     }
-    return Object.fromEntries(Object.entries(value).map(([key, entry]) => {
-      if (key !== 'access_token' || typeof entry !== 'string') {
-        return [key, fill(entry)];
-      }
-      const name = entry.slice(1);
-      const token = env[name];
-      if (!token) {
-        missing.add(name);
-      }
-      return [key, token ?? entry];
-    }));
+    return Object.fromEntries(
+      Object.entries(value).map(([key, entry]) => {
+        if (key !== 'access_token' || typeof entry !== 'string') {
+          return [key, fill(entry)];
+        }
+        const name = entry.slice(1);
+        const token = env[name];
+        if (!token) {
+          missing.add(name);
+        }
+        return [key, token ?? entry];
+      }),
+    );
   };
 
   const resolved = fill(cron) as Cron;
@@ -122,7 +110,7 @@ export const resolveTokens = (cron: Cron, env: NodeJS.ProcessEnv): Cron => {
 };
 
 // Reads the cron the workflow defined, and fills in the tokens from the secrets
-export default function loadCron (env: NodeJS.ProcessEnv = process.env): Cron {
+export default function loadCron(env: NodeJS.ProcessEnv = process.env): Cron {
   const raw = env[CRON_ARGUMENTS_ENV];
   let cronArguments: unknown;
   try {

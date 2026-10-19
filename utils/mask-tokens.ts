@@ -28,11 +28,11 @@ export const collectTokens = (cron: Cron): string[] => {
 
 // GitHub already masks each secret it hands to the job, so this is a second
 // layer, covering a token that reaches the run by any other route.
-export default function maskTokens (env: NodeJS.ProcessEnv = process.env): string[] {
-  return collectTokens(loadCron(env)).map((token) => `::add-mask::${token}`);
+export default function maskTokens(env: NodeJS.ProcessEnv = process.env): string[] {
+  return collectTokens(loadCron(env)).map(token => `::add-mask::${token}`);
 }
 
 // Entry point, `pnpm cron:mask`
 if (require.main === module) {
-  maskTokens().forEach((command) => console.log(command));
+  maskTokens().forEach(command => console.log(command));
 }

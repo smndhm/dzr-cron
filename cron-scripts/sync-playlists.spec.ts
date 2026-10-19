@@ -1,12 +1,6 @@
 import syncPlaylists from './sync-playlists';
 // MOCK
-import {
-  nockGetPlaylistIdTracks,
-  nockPostPlaylistIdTracks,
-  cleanAll,
-  nockThrowError,
-  nockRespondError
-} from '../utils/nocks';
+import { nockGetPlaylistIdTracks, nockPostPlaylistIdTracks, cleanAll, nockThrowError, nockRespondError } from '../utils/nocks';
 import mockEntityDeezerTracks from '../__mocks__/api-deezer-tracks.json';
 import { Playlist, AtLeastTwo } from '../types';
 
@@ -21,9 +15,7 @@ describe('Sync Playlists Cron', () => {
   });
 
   test('Should not update playlist when they are the same', async () => {
-    const mockGetPlaylistIdTracks = nockGetPlaylistIdTracks(
-      cronArguments.length
-    );
+    const mockGetPlaylistIdTracks = nockGetPlaylistIdTracks(cronArguments.length);
     const mockPostPlaylistIdTracks = nockPostPlaylistIdTracks();
 
     await syncPlaylists(cronArguments);
@@ -33,9 +25,7 @@ describe('Sync Playlists Cron', () => {
   });
 
   test('Should update one playlist when one of them has a new track', async () => {
-    const playlistWithNewTrack = JSON.parse(
-      JSON.stringify(mockEntityDeezerTracks)
-    );
+    const playlistWithNewTrack = JSON.parse(JSON.stringify(mockEntityDeezerTracks));
     playlistWithNewTrack.data.push({
       id: 10,
       readable: true,
@@ -43,10 +33,7 @@ describe('Sync Playlists Cron', () => {
       time_add: 10,
     });
     const mockGetPlaylistIdTracks_1 = nockGetPlaylistIdTracks();
-    const mockGetPlaylistIdTracks_2 = nockGetPlaylistIdTracks(
-      1,
-      playlistWithNewTrack
-    );
+    const mockGetPlaylistIdTracks_2 = nockGetPlaylistIdTracks(1, playlistWithNewTrack);
     const mockPostPlaylistIdTracks = nockPostPlaylistIdTracks(2);
 
     await syncPlaylists(cronArguments);
@@ -66,10 +53,7 @@ describe('Sync Playlists Cron', () => {
   });
 
   test('Should return if not enought playlists are available', async () => {
-    const mockRespondError = nockRespondError(
-      /\/playlist\/\d+\/tracks/,
-      cronArguments.length
-    );
+    const mockRespondError = nockRespondError(/\/playlist\/\d+\/tracks/, cronArguments.length);
 
     const cron = await syncPlaylists(cronArguments);
 

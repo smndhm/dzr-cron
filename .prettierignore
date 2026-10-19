@@ -1,0 +1,4 @@
+pnpm-lock.yaml
+# Test data, kept as the services send it
+__mocks__
+__fixtures__

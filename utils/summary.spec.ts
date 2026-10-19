@@ -16,14 +16,9 @@ describe('Run summary', () => {
     reportChange(silent(), { action: 'tracks-removed', playlist: 9499677562, tracks: [4] });
     reportChange(silent(), { action: 'tracks-ordered', playlist: 1008179901 });
 
-    expect(renderSummary('family-playlist', 0)).toBe([
-      '## family-playlist',
-      '',
-      '- 3 tracks added to playlist 9499677562',
-      '- 1 track removed from playlist 9499677562',
-      '- playlist 1008179901 reordered',
-      '',
-    ].join('\n'));
+    expect(renderSummary('family-playlist', 0)).toBe(
+      ['## family-playlist', '', '- 3 tracks added to playlist 9499677562', '- 1 track removed from playlist 9499677562', '- playlist 1008179901 reordered', ''].join('\n'),
+    );
   });
 
   test('Should say so when nothing changed', () => {
@@ -37,11 +32,14 @@ describe('Run summary', () => {
 
   test('Should also log the change it records', () => {
     const lines: string[] = [];
-    reportChange(setLogger('last-tracks', (line) => lines.push(line)), {
-      action: 'tracks-added',
-      playlist: 1,
-      tracks: [7],
-    });
+    reportChange(
+      setLogger('last-tracks', line => lines.push(line)),
+      {
+        action: 'tracks-added',
+        playlist: 1,
+        tracks: [7],
+      },
+    );
 
     expect(lines[0]).toBe('INFO [last-tracks] {"action":"tracks-added","playlist":1,"tracks":[7]}');
   });
