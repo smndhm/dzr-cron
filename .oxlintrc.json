@@ -1,5 +1,4 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "extends": ["./node_modules/@dume/dev-config/lint/oxlint.json"],
-  "ignorePatterns": ["coverage/**"]
+  "extends": ["./node_modules/@dume/dev-config/lint/oxlint.json"]
 }
