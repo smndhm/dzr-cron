@@ -8,14 +8,14 @@
     "cron:mask": "tsx ./utils/mask-tokens.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --coverage",
-    "lint": "prettier . --check && oxlint",
+    "lint": "prettier . --check && oxlint && dev-config sync --check",
     "lint:fix": "prettier . --write && oxlint --fix"
   },
   "author": "smndhm",
   "license": "ISC",
-  "prettier": "@dume/linting/prettier",
+  "prettier": "@dume/dev-config/lint/prettier",
   "devDependencies": {
-    "@dume/linting": "1.1.1",
+    "@dume/dev-config": "1.1.0",
     "@types/node": "24.19.2",
     "@vitest/coverage-v8": "5.0.5",
     "nock": "14.0.17",
