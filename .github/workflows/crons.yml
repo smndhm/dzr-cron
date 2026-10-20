@@ -38,7 +38,7 @@ jobs:
           path: .state
           fetch-depth: 1
 
-      - uses: smndhm/dev-config/ci/setup@a9fc62ee463d5e7c4cde4dd3b996381b53275556 # main
+      - uses: smndhm/dev-config/ci/setup@54649d01461714ef6c79fae46e5cadb5ab44b029 # main
 
       # A second layer over GitHub's own masking of these three
       - name: Mask Deezer access tokens
