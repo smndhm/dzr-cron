@@ -192,6 +192,17 @@ Must be an object with the following properties:
 
 #### Good to know
 
+- The playlist is ordered by the kind of release, the quick listens first: a
+  single, then an EP, then an album, and a reissue last. A single is three
+  minutes and a decision; an album is forty and a sitting, so it waits at the
+  bottom. Within one kind the playlist keeps the order it had, so a run that
+  changes nothing writes nothing. The kinds come from the sweep over the
+  favourite artists, which already answers with every album's `record_type`, so
+  the ordering costs no request of its own — and an artist Deezer refused leaves
+  their albums unranked, which puts them with the albums rather than in front.
+- Deezer takes the whole playlist in one `order`, so a partial read would
+  rewrite it to whatever arrived. Each run compares what it read against the
+  total Deezer claims and leaves the order alone when the two disagree.
 - Each run writes the day it covered at the end of the playlist description, as
   `Mes sorties [dzr-cron:2026-09-17]`, and the next one starts there. Without
   it, a release you played would be poured back in, since the playlist forgets a

@@ -72,13 +72,33 @@ export const nockGetBatch = (response: Body) =>
     .reply(200, response);
 
 // Same as nockPostPlaylistIdTracks, but keeps the ids the script added
+// Adding and reordering are the same path, told apart by what they carry
 export const nockPostPlaylistIdTracksCapture = (times = 1) => {
   const captured: string[] = [];
   const scope = nock('https://api.deezer.com')
     .post(/\/playlist\/\d+\/tracks/)
     .times(times)
     .query(query => {
-      captured.push(query.songs as string);
+      if (typeof query.songs !== 'string') {
+        return false;
+      }
+      captured.push(query.songs);
+      return true;
+    })
+    .reply(200);
+  return { scope, captured };
+};
+
+export const nockPostPlaylistIdTracksOrderCapture = (times = 1) => {
+  const captured: string[] = [];
+  const scope = nock('https://api.deezer.com')
+    .post(/\/playlist\/\d+\/tracks/)
+    .times(times)
+    .query(query => {
+      if (typeof query.order !== 'string') {
+        return false;
+      }
+      captured.push(query.order);
       return true;
     })
     .reply(200);
