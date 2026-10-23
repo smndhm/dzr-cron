@@ -1,7 +1,7 @@
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import newReleases from './new-releases';
+import newReleases, { orderByRecordType } from './new-releases';
 import {
   cleanAll,
   nockGetFavouriteArtists,
@@ -15,6 +15,7 @@ import {
   nockPostPlaylistDescriptionError,
   nockRespondError,
   nockStatus,
+  nockPostPlaylistIdTracksOrderCapture,
 } from '../utils/nocks';
 import { getErrorCount, resetErrorCount } from '../utils/logger';
 
@@ -46,6 +47,14 @@ const nothingPlayed = () => nockGetListeningHistory();
 const played = (...ids: number[]) => nockGetListeningHistory({ data: ids.map(id => ({ id })) });
 
 const args = { access_token: 'token', playlistId: 123456789 };
+
+// A playlist whose tracks say which album they came from, which is what the
+// ordering reads. [trackId, albumId] pairs.
+const holdingFrom = (...pairs: [number, number][]) =>
+  nockGetPlaylistIdTracks(1, {
+    data: pairs.map(([id, from]) => ({ id, album: { id: from } })),
+    total: pairs.length,
+  });
 
 // The workflow checks a branch out at .state; here it is a scratch directory,
 // so the tests never touch the repository
@@ -298,6 +307,107 @@ describe('new-releases', () => {
 
       expect(mark.scope.isDone()).toBeFalsy();
       expect(getErrorCount()).toBe(1);
+    });
+  });
+
+  describe('the order it arrives in', () => {
+    describe('orderByRecordType', () => {
+      const albumOf = new Map([
+        [101, 1],
+        [102, 1],
+        [201, 2],
+        [301, 3],
+        [401, 4],
+        [501, 5],
+      ]);
+      const kinds = new Map([
+        [1, 'album'],
+        [2, 'single'],
+        [3, 'ep'],
+        [4, 'compile'],
+      ]);
+
+      test('puts a single first, then an EP, then an album, then a reissue', () => {
+        expect(orderByRecordType([101, 201, 301, 401], albumOf, kinds)).toEqual([201, 301, 101, 401]);
+      });
+
+      // So a run that changes nothing asks Deezer for nothing
+      test('keeps the order it had within one kind', () => {
+        expect(orderByRecordType([102, 101], albumOf, kinds)).toEqual([102, 101]);
+      });
+
+      // An artist Deezer refused this run leaves its albums unknown, and an
+      // unknown kind must not jump the queue
+      test('leaves an unknown kind with the albums', () => {
+        expect(orderByRecordType([501, 201, 101], albumOf, kinds)).toEqual([201, 501, 101]);
+      });
+    });
+
+    test('pours a single in ahead of an album', async () => {
+      nockGetPlaylist();
+      emptyPlaylist();
+      nothingPlayed();
+      nockGetFavouriteArtists();
+      nockGetBatch(batch([album(1, today(), 'album'), album(2, today(), 'single')]));
+      nockGetBatch(batch([playable(101), playable(102)], [playable(201)]));
+      const added = nockPostPlaylistIdTracksCapture();
+      const ordered = nockPostPlaylistIdTracksOrderCapture();
+      nockPostPlaylistDescriptionCapture();
+
+      await newReleases(args);
+
+      expect(added.captured).toEqual(['101,102,201']);
+      expect(ordered.captured).toEqual(['201,101,102']);
+    });
+
+    // The playlist was filled before this rule existed, so the first run that
+    // sees it has to put it right even with nothing new to pour in
+    test('reorders what is already there when nothing new arrives', async () => {
+      nockGetPlaylist();
+      holdingFrom([101, 1], [201, 2]);
+      nothingPlayed();
+      nockGetFavouriteArtists();
+      nockGetBatch(batch([album(1, daysAgo(90), 'album'), album(2, daysAgo(90), 'single')]));
+      const added = nockPostPlaylistIdTracksCapture();
+      const ordered = nockPostPlaylistIdTracksOrderCapture();
+      nockPostPlaylistDescriptionCapture();
+
+      await newReleases(args);
+
+      expect(added.scope.isDone()).toBeFalsy();
+      expect(ordered.captured).toEqual(['201,101']);
+    });
+
+    test('asks for nothing when the order is already right', async () => {
+      nockGetPlaylist();
+      holdingFrom([201, 2], [101, 1]);
+      nothingPlayed();
+      nockGetFavouriteArtists();
+      nockGetBatch(batch([album(1, daysAgo(90), 'album'), album(2, daysAgo(90), 'single')]));
+      const ordered = nockPostPlaylistIdTracksOrderCapture();
+      nockPostPlaylistDescriptionCapture();
+
+      await newReleases(args);
+
+      expect(ordered.scope.isDone()).toBeFalsy();
+    });
+
+    // Deezer takes the whole playlist in one order, so reordering on a partial
+    // read would rewrite the playlist to whatever arrived
+    test('leaves the order alone when fewer tracks arrived than claimed', async () => {
+      resetErrorCount();
+      nockGetPlaylist();
+      nockGetPlaylistIdTracks(1, { data: [{ id: 101, album: { id: 1 } }], total: 40 });
+      nothingPlayed();
+      nockGetFavouriteArtists();
+      nockGetBatch(batch([album(1, daysAgo(90), 'album'), album(2, daysAgo(90), 'single')]));
+      const ordered = nockPostPlaylistIdTracksOrderCapture();
+      nockPostPlaylistDescriptionCapture();
+
+      await newReleases(args);
+
+      expect(ordered.scope.isDone()).toBeFalsy();
+      expect(getErrorCount()).toBe(0);
     });
   });
 

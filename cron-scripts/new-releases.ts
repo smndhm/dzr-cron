@@ -7,6 +7,7 @@ import {
   getPlaylistTracks,
   getListeningHistory,
   postPlaylistTracks,
+  postPlaylistTracksOrder,
   deletePlaylistTracks,
   postPlaylistDescription,
 } from '../utils/dzr';
@@ -25,6 +26,27 @@ import { Poured } from '../utils/state';
 
 // Deezer answers at most fifty calls in one batch
 const BATCH_SIZE = 50;
+
+// The quick listens first. A single is three minutes and a decision; an album
+// is forty and a sitting, so it waits at the bottom. A compile is a reissue of
+// old music, which is the least urgent thing in a playlist of new releases.
+const RANK: Record<string, number> = { single: 0, ep: 1, album: 2, compile: 3 };
+
+// An album whose kind nothing says — an artist Deezer refused this run — sits
+// with the albums rather than jumping the queue
+const rankOf = (recordType: string | undefined): number => RANK[recordType ?? ''] ?? RANK.album;
+
+// Stable on purpose: within one kind the playlist keeps the order it had, so a
+// run that changes nothing asks Deezer for nothing.
+export const orderByRecordType = (tracks: number[], albumOfTrack: Map<number, number>, typeOfAlbum: Map<number, string>): number[] =>
+  tracks
+    .map((track, position) => ({
+      track,
+      position,
+      rank: rankOf(typeOfAlbum.get(albumOfTrack.get(track) ?? -1)),
+    }))
+    .toSorted((one, other) => one.rank - other.rank || one.position - other.position)
+    .map(({ track }) => track);
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -105,8 +127,16 @@ export default async function newReleases({ playlistId, access_token, days = 15,
 
     // WHAT IS IN THE PLAYLIST, AND WHAT HAS BEEN LISTENED TO
     // The same two answers decide what to pour in and what to take out
-    const { data: dzrDestinationPlaylistTracks } = await getPlaylistTracks(access_token, playlistId);
+    const { data: dzrDestinationPlaylistTracks, total: playlistTotal } = await getPlaylistTracks(access_token, playlistId);
     const playlistTracksId = new Set<number>(dzrDestinationPlaylistTracks.map((track: DeezerTrack) => track.id));
+    // Which album each track came from, so the playlist can be ordered by the
+    // kind of release later on
+    const albumOfTrack = new Map<number, number>(
+      dzrDestinationPlaylistTracks.filter((track: DeezerTrack) => track.album?.id).map((track: DeezerTrack) => [track.id, track.album.id]),
+    );
+    // Deezer paginates elsewhere and ignores limit on the history, so the size
+    // it claims is worth comparing against what arrived
+    logger.info('Playlist', { tracks: playlistTracksId.size, total: playlistTotal });
 
     // WHAT EARLIER RUNS POURED IN
     // The playlist forgets a track the moment anything takes it out, whether a
@@ -182,6 +212,11 @@ export default async function newReleases({ playlistId, access_token, days = 15,
       }
     }
 
+    // Every album the sweep saw, by kind. The playlist only ever holds releases
+    // by a favourite artist, so this knows the kind of all of them, including
+    // those poured in weeks ago, without asking Deezer anything more.
+    const typeOfAlbum = new Map<number, string>(albums.map(album => [album.id, album.record_type]));
+
     // KEEP THE RECENT ONES
     // Album id to its release date. A map because an album two artists released
     // together answers in both their lists, and because the date is what a
@@ -189,19 +224,16 @@ export default async function newReleases({ playlistId, access_token, days = 15,
     const releases = new Map<number, string>();
     albums.filter(album => album.release_date >= since && (!recordTypes || recordTypes.includes(album.record_type))).forEach(album => releases.set(album.id, album.release_date));
 
-    if (releases.size === 0) {
-      logger.info('No release since', { since });
-      await leaveMark(access_token, playlistId, playlist.description, today, complete);
-      return;
-    }
-
     // GET THEIR TRACKS
     // An album not out yet is one Deezer published early, so only what it says
     // plays is taken and the rest waits for the day, when the album is still in
     // the window. Nowhere else: on an album already out the mark moves past it,
     // and a track wrongly held back would be lost rather than late.
     // Each released track, with the date of the album it came from
-    const releasedTracks = new Map<number, string>();
+    const releasedTracks = new Map<number, { album: number; releaseDate: string }>();
+    if (releases.size === 0) {
+      logger.info('No release since', { since });
+    }
     for (const group of chunk(Array.from(releases.keys()), BATCH_SIZE)) {
       try {
         const { batch_result } = await getBatch(
@@ -211,7 +243,7 @@ export default async function newReleases({ playlistId, access_token, days = 15,
         batchEntries<DeezerTrack>(batch_result, incomplete).forEach((tracks, index) => {
           const releaseDate = releases.get(group[index]) ?? today;
           const notOutYet = releaseDate > today;
-          tracks.filter(track => !notOutYet || track.readable).forEach(track => releasedTracks.set(track.id, releaseDate));
+          tracks.filter(track => !notOutYet || track.readable).forEach(track => releasedTracks.set(track.id, { album: group[index], releaseDate }));
         });
       } catch (e) {
         if (!(e instanceof TransientError)) {
@@ -238,13 +270,34 @@ export default async function newReleases({ playlistId, access_token, days = 15,
       // next one pours in again the moment the owner takes it out.
       if (remembering) {
         tracksToAdd.forEach(track => {
-          poured[track] = releasedTracks.get(track) ?? today;
+          poured[track] = releasedTracks.get(track)?.releaseDate ?? today;
         });
         try {
           writePoured(prunePoured(poured, keepSince));
         } catch (e) {
           logger.error(e);
         }
+      }
+    }
+
+    // ORDER IT, THE QUICK LISTENS FIRST
+    // Deezer takes the whole playlist in one order, so a partial read would
+    // rewrite it to whatever arrived. It has never paginated here, but the
+    // history ignores limit, so the claim is checked rather than trusted.
+    tracksToAdd.forEach(track => {
+      const released = releasedTracks.get(track);
+      if (released) {
+        albumOfTrack.set(track, released.album);
+      }
+    });
+    const playlistNow = [...playlistTracksId, ...tracksToAdd];
+    if (typeof playlistTotal === 'number' && playlistTotal !== playlistTracksId.size) {
+      logger.warn('Read fewer tracks than the playlist claims, leaving the order alone', { tracks: playlistTracksId.size, total: playlistTotal });
+    } else if (playlistNow.length) {
+      const ordered = orderByRecordType(playlistNow, albumOfTrack, typeOfAlbum);
+      if (ordered.some((track, position) => track !== playlistNow[position])) {
+        await postPlaylistTracksOrder(access_token, playlistId, ordered);
+        reportChange(logger, { action: 'tracks-ordered', playlist: playlistId });
       }
     }
 
