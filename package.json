@@ -19,7 +19,7 @@
     "@dume/dev-config": "1.4.0",
     "@types/node": "24.19.2",
     "@vitest/coverage-v8": "5.0.5",
-    "nock": "14.0.17",
+    "nock": "15.0.5",
     "oxlint": "1.89.0",
     "prettier": "3.9.10",
     "tsx": "4.23.15",
