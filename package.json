@@ -16,7 +16,7 @@
   "license": "ISC",
   "prettier": "@dume/dev-config/lint/prettier",
   "devDependencies": {
-    "@dume/dev-config": "1.3.0",
+    "@dume/dev-config": "1.4.0",
     "@types/node": "24.19.2",
     "@vitest/coverage-v8": "5.0.5",
     "nock": "14.0.17",
