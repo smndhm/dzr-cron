@@ -8,7 +8,7 @@ on:
 jobs:
   # Copies @dume/dev-config's files, then runs the CI checks on that commit (see smndhm/dev-config)
   renovate-branch:
-    uses: smndhm/dev-config/.github/workflows/renovate-branch.yml@cb71a9f6239ed13df381e6d1e367bd2fa20d4236 # main
+    uses: smndhm/dev-config/.github/workflows/renovate-branch.yml@bde4a82a697c5e90bda3ef8e1abfd1c791fe13d9 # main
     permissions:
       contents: write
       statuses: write
