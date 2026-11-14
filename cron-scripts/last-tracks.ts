@@ -8,6 +8,8 @@ const logger = setLogger('last-tracks');
 // Import types
 import { AtLeastOne, Playlist, DeezerTrack } from '../types';
 
+const DAY_SECONDS = 24 * 60 * 60;
+
 // Script
 export default async function lastTracks({
   playlistId,
@@ -15,7 +17,10 @@ export default async function lastTracks({
   playlists,
   nbTracks = 50,
   noExplicitLyrics = false,
-}: Playlist & { playlists: AtLeastOne<Playlist> } & { nbTracks?: number } & { noExplicitLyrics?: boolean }) {
+  addedWithinDays,
+}: Playlist & { playlists: AtLeastOne<Playlist> } & { nbTracks?: number } & { noExplicitLyrics?: boolean } & {
+  addedWithinDays?: number;
+}) {
   try {
     logger.info('Script started');
 
@@ -36,6 +41,11 @@ export default async function lastTracks({
       return;
     }
 
+    // A track someone added to their playlist long ago is not news any more,
+    // however near the top of their playlist it sits. Deezer gives time_add in
+    // seconds. No argument means no limit, which is what the car playlist wants.
+    const addedSince = addedWithinDays ? Date.now() / 1000 - addedWithinDays * DAY_SECONDS : 0;
+
     const dzrTracksId: number[] = [];
     // Membership is checked once per track of every playlist, so a Set rather
     // than a scan of the ids kept so far
@@ -48,6 +58,7 @@ export default async function lastTracks({
         .filter(
           track =>
             track.readable && // this params is sometimes not correct...
+            track.time_add >= addedSince && // added to its own playlist recently enough
             (!noExplicitLyrics || !track.explicit_lyrics) && // remove tracks with explicit lyrics
             !keptTracksId.has(track.id),
         )

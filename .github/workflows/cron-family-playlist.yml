@@ -39,6 +39,7 @@ jobs:
               "playlistId": 183341731
             }
           ],
-          "nbTracks": 10
+          "nbTracks": 10,
+          "addedWithinDays": 183
         }
     secrets: inherit

@@ -37,7 +37,7 @@ const assertArguments = (action: string, cronArguments: unknown): void => {
   }
 
   if (action === 'last-tracks') {
-    const { playlists, nbTracks, noExplicitLyrics } = cronArguments as Record<string, unknown>;
+    const { playlists, nbTracks, noExplicitLyrics, addedWithinDays } = cronArguments as Record<string, unknown>;
     if (!Array.isArray(playlists) || playlists.length < 1 || !playlists.every(isPlaylist)) {
       throw new Error(`${CRON_ARGUMENTS_ENV}: "last-tracks" needs a "playlists" array of at least one playlist.`);
     }
@@ -46,6 +46,9 @@ const assertArguments = (action: string, cronArguments: unknown): void => {
     }
     if (noExplicitLyrics !== undefined && typeof noExplicitLyrics !== 'boolean') {
       throw new Error(`${CRON_ARGUMENTS_ENV}: "noExplicitLyrics" must be a boolean.`);
+    }
+    if (addedWithinDays !== undefined && (typeof addedWithinDays !== 'number' || addedWithinDays <= 0)) {
+      throw new Error(`${CRON_ARGUMENTS_ENV}: "addedWithinDays" must be a number of days above zero.`);
     }
   }
 

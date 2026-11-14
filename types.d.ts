@@ -36,7 +36,7 @@ interface Cron {
 
 export interface LastTracksCron extends Cron {
   action: 'last-tracks';
-  arguments: Playlist & { playlists: AtLeastOne<Playlist> } & { nbTracks?: number } & { noExplicitLyrics?: boolean };
+  arguments: Playlist & { playlists: AtLeastOne<Playlist> } & { nbTracks?: number } & { noExplicitLyrics?: boolean } & { addedWithinDays?: number };
 }
 
 export interface SyncPlaylistCron extends Cron {
