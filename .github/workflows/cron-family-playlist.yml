@@ -23,8 +23,8 @@ jobs:
           "playlistId": 9499677562,
           "playlists": [
             {
-              "access_token": "$MY_ACCESS_TOKEN",
-              "playlistId": 1008179901
+              "access_token": "$THIBAUT_ACCESS_TOKEN",
+              "playlistId": 15207743823
             },
             {
               "access_token": "$LUCAS_ACCESS_TOKEN",
