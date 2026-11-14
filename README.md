@@ -119,6 +119,11 @@ Because my kids wants to have their tracks during "apéro", I updated this cron.
     See how to get an access_token on the [Deezer API OAuth doc](https://developers.deezer.com/api/oauth).
 
 - `nbTracks` is the number of tracks you want to import from each playlists.
+- `addedWithinDays` leaves out a track added to its own playlist longer ago than
+  this, however near the top of that playlist it sits: six months of sitting
+  there and it is not news any more. Optional, no limit by default, which is
+  what the car playlist wants. Since the destination is set to exactly what was
+  selected, the limit also takes a track out on the run where it ages past it.
 - `noExplicitLyrics` if you don't want tracks with explicit lyrics. Optional, default is false.
 
 ### Synchonize playlists

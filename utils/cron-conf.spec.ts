@@ -112,6 +112,8 @@ describe('Cron configuration', () => {
     test('Should reject invalid last-tracks options', () => {
       expect(() => parseCron('car', 'last-tracks', { ...lastTracksArguments, nbTracks: '10' })).toThrow('"nbTracks" must be a number');
       expect(() => parseCron('car', 'last-tracks', { ...lastTracksArguments, noExplicitLyrics: 'yes' })).toThrow('"noExplicitLyrics" must be a boolean');
+      expect(() => parseCron('car', 'last-tracks', { ...lastTracksArguments, addedWithinDays: 0 })).toThrow('"addedWithinDays" must be a number of days above zero');
+      expect(() => parseCron('car', 'last-tracks', { ...lastTracksArguments, addedWithinDays: '183' })).toThrow('"addedWithinDays" must be a number of days above zero');
     });
   });
 
