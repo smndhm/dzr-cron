@@ -47,6 +47,7 @@ jobs:
           MY_ACCESS_TOKEN: ${{ secrets.MY_ACCESS_TOKEN }}
           LYNDS_ACCESS_TOKEN: ${{ secrets.LYNDS_ACCESS_TOKEN }}
           LUCAS_ACCESS_TOKEN: ${{ secrets.LUCAS_ACCESS_TOKEN }}
+          THIBAUT_ACCESS_TOKEN: ${{ secrets.THIBAUT_ACCESS_TOKEN }}
           CRON_NAME: ${{ inputs.cron }}
           CRON_ACTION: ${{ inputs.action }}
           CRON_ARGUMENTS: ${{ inputs.arguments }}
@@ -58,6 +59,7 @@ jobs:
           MY_ACCESS_TOKEN: ${{ secrets.MY_ACCESS_TOKEN }}
           LYNDS_ACCESS_TOKEN: ${{ secrets.LYNDS_ACCESS_TOKEN }}
           LUCAS_ACCESS_TOKEN: ${{ secrets.LUCAS_ACCESS_TOKEN }}
+          THIBAUT_ACCESS_TOKEN: ${{ secrets.THIBAUT_ACCESS_TOKEN }}
           CRON_NAME: ${{ inputs.cron }}
           CRON_ACTION: ${{ inputs.action }}
           CRON_ARGUMENTS: ${{ inputs.arguments }}
