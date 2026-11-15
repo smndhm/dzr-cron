@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - uses: smndhm/dev-config/ci/setup@bd8ac069c3422e5edb7a3e4c7a5093fb183fe11b # main
+      - uses: smndhm/dev-config/ci/setup@086f6b9491e2ec9edcd5f7f48b9aa1fe29003fc9 # main
       - name: Check types
         run: pnpm run typecheck
       - name: Lint
