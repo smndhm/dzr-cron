@@ -20,20 +20,19 @@ export default async function lastTracks({
     logger.info('Script started');
 
     // GET PLAYLISTS CONTENT
+    // A source that could not be read is not an empty source. The destination
+    // is set to exactly what was selected, so going on with the ones that did
+    // answer would take that person's tracks out of it — the playlist would
+    // quietly shrink by ten on the day their token or their playlist hiccups.
+    // The run stops instead, having written nothing, and the next one syncs.
     const dzrPlaylists: DeezerTrack[][] = [];
     for await (const playlist of playlists) {
       const data = await getPlaylistTracks(playlist.access_token, playlist.playlistId);
-      if (!data.error) {
-        dzrPlaylists.push(data.data);
-      } else {
-        logger.error('API Error Response', data.error);
+      if (data.error) {
+        logger.error(`Could not read playlist ${playlist.playlistId}, leaving the destination alone.`, data.error);
+        return;
       }
-    }
-
-    // CHECK IF COULD GET DATA FROM ENOUGTH PLAYLISTS
-    if (dzrPlaylists.length === 0) {
-      logger.error('Not enought valid playlists.');
-      return;
+      dzrPlaylists.push(data.data);
     }
 
     const dzrTracksId: number[] = [];

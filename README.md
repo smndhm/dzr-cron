@@ -121,6 +121,13 @@ Because my kids wants to have their tracks during "apéro", I updated this cron.
 - `nbTracks` is the number of tracks you want to import from each playlists.
 - `noExplicitLyrics` if you don't want tracks with explicit lyrics. Optional, default is false.
 
+A source playlist that cannot be read stops the run, having written nothing. It
+is not an empty source: the destination is set to exactly what was selected, so
+carrying on with the playlists that did answer would take that person's tracks
+out of it, and the playlist would quietly shrink by `nbTracks` on the day their
+token or their playlist hiccups. The error names the playlist, and the next run
+syncs.
+
 ### Synchonize playlists
 
 What happened, Lucas had its playlist on my account, I was adding tracks for him and then, one day, he went to see mom... _"What! You don't have my playlist?"_  
