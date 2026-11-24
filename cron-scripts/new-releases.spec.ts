@@ -294,13 +294,13 @@ describe('new-releases', () => {
     });
 
     // A refused token is not transient, and carrying on would hide it
-    test('stops on anything that is not a gateway', async () => {
+    test('stops on a refusal that survives the retry', async () => {
       resetErrorCount();
       nockGetPlaylist();
       emptyPlaylist();
       nothingPlayed();
       nockGetFavouriteArtists();
-      nockStatus(/\/batch/, 403);
+      nockStatus(/\/batch/, 403, 2);
       const mark = nockPostPlaylistDescriptionCapture();
 
       await newReleases(args);

@@ -80,15 +80,38 @@ describe('dzr', () => {
 
   // A refused token is not transient: trying again wastes a run, and the caller
   // must not carry on without the answer
-  test('does not send a refused request again', async () => {
+  // Measured three times in two days, always on the request that opens the
+  // connection: something at the front of Deezer refuses it, and the same token
+  // worked a dozen times the same day
+  test('sends a request again when the door refuses it', async () => {
     const refused = nockStatus(/\/playlist\/\d+\/tracks/, 403);
+    const second = nockGetPlaylistIdTracks();
+
+    await expect(getPlaylistTracks('token', 123456789)).resolves.toBeDefined();
+
+    expect(refused.isDone()).toBeTruthy();
+    expect(second.isDone()).toBeTruthy();
+  });
+
+  // A 403 that survives the retry is rare enough to be worth a red run and a
+  // look, rather than a warning a caller may carry on from
+  test('stops on a refusal that survives the retry, and says on what', async () => {
+    const refused = nockStatus(/\/playlist\/\d+\/tracks/, 403, 2);
 
     const failed = getPlaylistTracks('token', 123456789);
-    await expect(failed).rejects.toThrow('Deezer answered 403');
+    await expect(failed).rejects.toThrow('Deezer answered 403 Forbidden on /playlist/123456789/tracks');
     await expect(failed).rejects.not.toThrow(TransientError);
 
     expect(refused.isDone()).toBeTruthy();
     expect(nock.isDone()).toBeTruthy();
+  });
+
+  // The path is what says which playlist, artist or album was refused: a run
+  // that read four playlists used to say only that one of them was
+  test('names the path a gateway gave up on', async () => {
+    nockStatus(/\/playlist\/\d+\/tracks/, 504, 2);
+
+    await expect(getPlaylistTracks('token', 123456789)).rejects.toThrow('Deezer answered 504 Gateway Timeout on /playlist/123456789/tracks, twice.');
   });
 
   test('Should respond an error', async () => {
