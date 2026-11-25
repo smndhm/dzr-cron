@@ -9,9 +9,22 @@ type Params = Record<string, string | number>;
 // enough to answer 504: nine runs in a hundred died that way. These statuses,
 // and a connection that drops, say nothing about the request itself, so it is
 // sent again. Once only — a gateway that times out twice in a second is not
-// going to answer on the third try, and the next run is four hours away with
-// the mark holding its place, which is the real second chance.
-const TRANSIENT = new Set([429, 500, 502, 503, 504]);
+// going to answer on the third try, and the next run is hours away with the
+// mark holding its place, which is the real second chance.
+//
+// 403 is sent again too, and it took three dead runs to see why. Measured:
+// three refusals in two days, each on the first request of a run, 164 to 175ms
+// in, never on a later one — and one of them on a token that a dozen other runs
+// used the same day. That is the door, not the credential: something at the
+// front of Deezer sometimes refuses the request that opens the connection. A
+// refused token does not look like this, because Deezer answers its own errors
+// with 200 and a payload, which the callers read and log.
+const RETRIED = new Set([403, 429, 500, 502, 503, 504]);
+
+// What a caller may carry on without, where it knows how. 403 is left out: it
+// is rare enough that one surviving a retry is worth a red run and a look,
+// rather than a warning nobody reads.
+const TOLERABLE = new Set([429, 500, 502, 503, 504]);
 const ATTEMPTS = 2;
 
 // Tests set it to nothing rather than wait
@@ -38,21 +51,22 @@ const request = async (method: string, path: string, params: Params) => {
       response = await fetch(url, { method });
     } catch (e) {
       if (last) {
-        throw new TransientError(`Deezer could not be reached: ${String(e)}`);
+        throw new TransientError(`Deezer could not be reached on ${path}: ${String(e)}`);
       }
       await pause(retryDelay());
       continue;
     }
 
-    if (TRANSIENT.has(response.status)) {
-      if (last) {
-        throw new TransientError(`Deezer answered ${response.status} ${response.statusText}, twice.`);
-      }
+    if (RETRIED.has(response.status) && !last) {
       await pause(retryDelay());
       continue;
     }
     if (!response.ok) {
-      throw new Error(`Deezer answered ${response.status} ${response.statusText}.`);
+      // The path says which playlist, artist or album was refused. Without it a
+      // run that read four playlists only said that one of them was, and the
+      // one had to be worked out from the clock.
+      const answered = `Deezer answered ${response.status} ${response.statusText} on ${path}`;
+      throw TOLERABLE.has(response.status) ? new TransientError(`${answered}, twice.`) : new Error(`${answered}.`);
     }
 
     // The write endpoints can answer with an empty body
