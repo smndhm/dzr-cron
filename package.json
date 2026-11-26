@@ -20,7 +20,7 @@
     "@types/node": "24.19.2",
     "@vitest/coverage-v8": "5.1.1",
     "nock": "14.0.17",
-    "oxlint": "1.94.0",
+    "oxlint": "1.95.0",
     "prettier": "3.10.1",
     "tsx": "4.23.15",
     "typescript": "6.0.3",
